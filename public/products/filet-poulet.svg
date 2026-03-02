@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#fef3c7"/>
+  <ellipse cx="500" cy="430" rx="230" ry="120" fill="#fbbf24"/>
+  <ellipse cx="760" cy="420" rx="200" ry="110" fill="#f59e0b"/>
+  <text x="70" y="710" font-size="64" font-family="Arial, sans-serif" fill="#1f2937">Filet de poulet 5 kg</text>
+</svg>

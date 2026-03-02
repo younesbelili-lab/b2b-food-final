@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#dcfce7"/>
+  <ellipse cx="430" cy="420" rx="180" ry="70" fill="#16a34a"/>
+  <ellipse cx="650" cy="430" rx="190" ry="75" fill="#15803d"/>
+  <ellipse cx="860" cy="410" rx="170" ry="68" fill="#166534"/>
+  <text x="70" y="710" font-size="64" font-family="Arial, sans-serif" fill="#1f2937">Courgettes 5 kg</text>
+</svg>

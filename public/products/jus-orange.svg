@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#ffedd5"/>
+  <rect x="380" y="250" width="150" height="300" rx="24" fill="#fb923c"/>
+  <rect x="560" y="250" width="150" height="300" rx="24" fill="#f97316"/>
+  <rect x="740" y="250" width="150" height="300" rx="24" fill="#ea580c"/>
+  <text x="70" y="710" font-size="64" font-family="Arial, sans-serif" fill="#1f2937">Jus d'orange 12 x 1L</text>
+</svg>

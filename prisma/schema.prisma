@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+enum OrderStatus {
+  PAYEE
+  A_PREPARER
+  EN_PREPARATION
+  EN_LIVRAISON
+  LIVREE
+  CONFIRMEE
+  REMBOURSEE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  APPLE_PAY
+  GOOGLE_PAY
+  OPEN_BANKING
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model User {
+  id              String           @id @default(cuid())
+  companyName     String
+  email           String           @unique
+  role            UserRole
+  orders          Order[]
+  recurringOrders RecurringOrder[]
+  supportTickets  SupportTicket[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id           String          @id @default(cuid())
+  name         String
+  slug         String          @unique
+  description  String
+  image        String
+  categoryId   String
+  category     Category        @relation(fields: [categoryId], references: [id])
+  priceHt      Decimal         @db.Decimal(10, 2)
+  buyPriceHt   Decimal         @db.Decimal(10, 2)
+  tvaRate      Decimal         @db.Decimal(5, 2)
+  stock        Int
+  isFeatured   Boolean         @default(false)
+  isSlowMover  Boolean         @default(false)
+  promoPercent Decimal?        @db.Decimal(5, 2)
+  orderLines   OrderLine[]
+  promotions   Promotion[]
+  movements    StockMovement[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Order {
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id])
+  status             OrderStatus
+  deliveryDate       DateTime
+  totalHt            Decimal          @db.Decimal(12, 2)
+  totalTva           Decimal          @db.Decimal(12, 2)
+  totalTtc           Decimal          @db.Decimal(12, 2)
+  invoiceNumber      String           @unique
+  deliveryNoteNumber String           @unique
+  receptionConfirmed Boolean          @default(false)
+  lines              OrderLine[]
+  payment            Payment?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model OrderLine {
+  id            String  @id @default(cuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id])
+  productId     String
+  product       Product @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitPriceHt   Decimal @db.Decimal(10, 2)
+  unitPriceTtc  Decimal @db.Decimal(10, 2)
+  lineTotalHt   Decimal @db.Decimal(12, 2)
+  lineTotalTtc  Decimal @db.Decimal(12, 2)
+  lineMarginEur Decimal @db.Decimal(12, 2)
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  orderId        String        @unique
+  order          Order         @relation(fields: [orderId], references: [id])
+  method         PaymentMethod
+  status         PaymentStatus
+  amountTtc      Decimal       @db.Decimal(12, 2)
+  transactionRef String
+  createdAt      DateTime      @default(now())
+}
+
+model Promotion {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  promoPercent Decimal? @db.Decimal(5, 2)
+  promoPriceHt Decimal? @db.Decimal(10, 2)
+  startsAt     DateTime
+  endsAt       DateTime
+}
+
+model SupportTicket {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  subject   String
+  message   String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  change     Int
+  reason     String
+  relatedRef String?
+  createdAt  DateTime @default(now())
+}
+
+model RecurringOrder {
+  id         String             @id @default(cuid())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id])
+  frequency  RecurringFrequency
+  active     Boolean            @default(true)
+  nextRunAt  DateTime
+  payload    Json
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}

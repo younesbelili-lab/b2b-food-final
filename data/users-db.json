@@ -1,0 +1,74 @@
+[
+  {
+    "id": "u-admin-1",
+    "companyName": "So Food Service Admin",
+    "email": "admin@sofoodservice.local",
+    "phone": "",
+    "address": "",
+    "password": "admin123",
+    "role": "ADMIN"
+  },
+  {
+    "id": "u-client-1",
+    "companyName": "Boulangerie Martin",
+    "email": "client@sofoodservice.local",
+    "phone": "0600000000",
+    "address": "",
+    "password": "client123",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_b43130d0",
+    "companyName": "TestCo1919",
+    "email": "test9309@demo.local",
+    "phone": "0612345678",
+    "address": "",
+    "password": "secret123",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_c36e85db",
+    "companyName": "Entreprise A",
+    "email": "entreprisea@gmail.com",
+    "phone": "0798989898",
+    "address": "",
+    "password": "motdepasse",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_a2742c61",
+    "companyName": "Test Address Co",
+    "email": "addr77388@demo.local",
+    "phone": "0611223344",
+    "address": "",
+    "password": "secret123",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_c5d8362f",
+    "companyName": "Test Address Co",
+    "email": "addr79600@demo.local",
+    "phone": "0611223344",
+    "address": "",
+    "password": "secret123",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_1f48000c",
+    "companyName": "Test Address Co",
+    "email": "addr21637@demo.local",
+    "phone": "0611223344",
+    "address": "12 Rue de Test, Paris",
+    "password": "secret123",
+    "role": "CLIENT"
+  },
+  {
+    "id": "u-client_78432953",
+    "companyName": "Entreprise B",
+    "email": "entrepriseb@gmail.com",
+    "phone": "0798989899",
+    "address": "41 AVENUE DU GENERAL LECLERC",
+    "password": "motdepasse",
+    "role": "CLIENT"
+  }
+]

@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
+import {
+  createCheckout,
+  getUserByEmail,
+  type PaymentMethod,
+} from "@/lib/store";
+
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.cookies.get(getSessionCookieName())?.value;
+    const session = verifySessionToken(token);
+    if (!session || session.role !== "CLIENT") {
+      return NextResponse.json({ error: "Authentification client requise." }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const user = getUserByEmail(session.email);
+    if (!user) {
+      return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
+    }
+    const paymentMethod = body.paymentMethod as PaymentMethod;
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: "Le paiement immediat est obligatoire." },
+        { status: 400 },
+      );
+    }
+
+    const order = createCheckout({
+      userId: user.id,
+      lines: body.lines ?? [],
+      paymentMethod,
+      deliveryDate: body.deliveryDate,
+      deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
+    });
+
+    return NextResponse.json({ order });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erreur checkout." },
+      { status: 400 },
+    );
+  }
+}

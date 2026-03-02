@@ -1,0 +1,370 @@
+{
+  "payments": [
+    {
+      "id": "pay_941eaf16",
+      "orderId": "ord_29b06a68",
+      "method": "CARD",
+      "amountTtc": 3.17,
+      "status": "PAID",
+      "transactionRef": "TRX-1771453203085",
+      "createdAt": "2026-02-18T22:20:03.088Z"
+    },
+    {
+      "id": "pay_b3018da4",
+      "orderId": "ord_a4a42e97",
+      "method": "CARD",
+      "amountTtc": 3.17,
+      "status": "PAID",
+      "transactionRef": "TRX-1771453556266",
+      "createdAt": "2026-02-18T22:25:56.267Z"
+    },
+    {
+      "id": "pay_e28aa5ed",
+      "orderId": "ord_e4460630",
+      "method": "CARD",
+      "amountTtc": 67.52,
+      "status": "PAID",
+      "transactionRef": "TRX-1771453661315",
+      "createdAt": "2026-02-18T22:27:41.315Z"
+    },
+    {
+      "id": "pay_0ca25a57",
+      "orderId": "ord_97a07e7a",
+      "method": "CARD",
+      "amountTtc": 25.36,
+      "status": "PAID",
+      "transactionRef": "TRX-1771454646238",
+      "createdAt": "2026-02-18T22:44:06.238Z"
+    },
+    {
+      "id": "pay_f201d4ab",
+      "orderId": "ord_e0caa60e",
+      "method": "CARD",
+      "amountTtc": 3.17,
+      "status": "PAID",
+      "transactionRef": "TRX-1771455400657",
+      "createdAt": "2026-02-18T22:56:40.657Z"
+    },
+    {
+      "id": "pay_95f984e1",
+      "orderId": "ord_897fec4a",
+      "method": "CARD",
+      "amountTtc": 3.17,
+      "status": "PAID",
+      "transactionRef": "TRX-1771455506974",
+      "createdAt": "2026-02-18T22:58:26.975Z"
+    },
+    {
+      "id": "pay_8f9e18c5",
+      "orderId": "ord_ef816c27",
+      "method": "CARD",
+      "amountTtc": 374.87,
+      "status": "PAID",
+      "transactionRef": "TRX-1771455674918",
+      "createdAt": "2026-02-18T23:01:14.918Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord_29b06a68",
+      "userId": "u-client-1",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "createdAt": "2026-02-18T22:20:03.088Z",
+      "lines": [
+        {
+          "productId": "prd_1104e86b",
+          "productName": "pdt",
+          "quantity": 1,
+          "unitPriceHt": 3,
+          "unitPriceTtc": 3.17,
+          "tvaRate": 5.5,
+          "lineTotalHt": 3,
+          "lineTotalTtc": 3.17,
+          "lineMarginEuro": 0.84,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 3,
+      "totalTva": 0.17,
+      "totalTtc": 3.17,
+      "paymentId": "pay_941eaf16",
+      "invoiceNumber": "FAC-2026-00001",
+      "deliveryNoteNumber": "BL-2026-00001",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_a4a42e97",
+      "userId": "u-client-1",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "createdAt": "2026-02-18T22:25:56.267Z",
+      "lines": [
+        {
+          "productId": "prd_1104e86b",
+          "productName": "pdt",
+          "quantity": 1,
+          "unitPriceHt": 3,
+          "unitPriceTtc": 3.17,
+          "tvaRate": 5.5,
+          "lineTotalHt": 3,
+          "lineTotalTtc": 3.17,
+          "lineMarginEuro": 0.84,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 3,
+      "totalTva": 0.17,
+      "totalTtc": 3.17,
+      "paymentId": "pay_b3018da4",
+      "invoiceNumber": "FAC-2026-00002",
+      "deliveryNoteNumber": "BL-2026-00002",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_e4460630",
+      "userId": "u-client-1",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "createdAt": "2026-02-18T22:27:41.315Z",
+      "lines": [
+        {
+          "productId": "prd_b6f80771",
+          "productName": "hhh",
+          "quantity": 4,
+          "unitPriceHt": 11,
+          "unitPriceTtc": 11.6,
+          "tvaRate": 5.5,
+          "lineTotalHt": 44,
+          "lineTotalTtc": 46.4,
+          "lineMarginEuro": 12.32,
+          "lineMarginPercent": 28
+        },
+        {
+          "productId": "prd_6b9bd2fb",
+          "productName": "gombos",
+          "quantity": 4,
+          "unitPriceHt": 5,
+          "unitPriceTtc": 5.28,
+          "tvaRate": 5.5,
+          "lineTotalHt": 20,
+          "lineTotalTtc": 21.12,
+          "lineMarginEuro": 5.6,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 64,
+      "totalTva": 3.52,
+      "totalTtc": 67.52,
+      "paymentId": "pay_e28aa5ed",
+      "invoiceNumber": "FAC-2026-00003",
+      "deliveryNoteNumber": "BL-2026-00003",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_97a07e7a",
+      "userId": "u-client_c36e85db",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "createdAt": "2026-02-18T22:44:06.238Z",
+      "lines": [
+        {
+          "productId": "prd_1104e86b",
+          "productName": "pdt",
+          "quantity": 8,
+          "unitPriceHt": 3,
+          "unitPriceTtc": 3.17,
+          "tvaRate": 5.5,
+          "lineTotalHt": 24,
+          "lineTotalTtc": 25.36,
+          "lineMarginEuro": 6.72,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 24,
+      "totalTva": 1.36,
+      "totalTtc": 25.36,
+      "paymentId": "pay_0ca25a57",
+      "invoiceNumber": "FAC-2026-00004",
+      "deliveryNoteNumber": "BL-2026-00004",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_e0caa60e",
+      "userId": "u-client_c5d8362f",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "createdAt": "2026-02-18T22:56:40.657Z",
+      "lines": [
+        {
+          "productId": "prd_1104e86b",
+          "productName": "pdt",
+          "quantity": 1,
+          "unitPriceHt": 3,
+          "unitPriceTtc": 3.17,
+          "tvaRate": 5.5,
+          "lineTotalHt": 3,
+          "lineTotalTtc": 3.17,
+          "lineMarginEuro": 0.84,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 3,
+      "totalTva": 0.17,
+      "totalTtc": 3.17,
+      "paymentId": "pay_f201d4ab",
+      "invoiceNumber": "FAC-2026-00005",
+      "deliveryNoteNumber": "BL-2026-00005",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_897fec4a",
+      "userId": "u-client_1f48000c",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-20",
+      "deliveryAddress": "88 Avenue Livraison, Lyon",
+      "createdAt": "2026-02-18T22:58:26.975Z",
+      "lines": [
+        {
+          "productId": "prd_1104e86b",
+          "productName": "pdt",
+          "quantity": 1,
+          "unitPriceHt": 3,
+          "unitPriceTtc": 3.17,
+          "tvaRate": 5.5,
+          "lineTotalHt": 3,
+          "lineTotalTtc": 3.17,
+          "lineMarginEuro": 0.84,
+          "lineMarginPercent": 28
+        }
+      ],
+      "totalHt": 3,
+      "totalTva": 0.17,
+      "totalTtc": 3.17,
+      "paymentId": "pay_95f984e1",
+      "invoiceNumber": "FAC-2026-00006",
+      "deliveryNoteNumber": "BL-2026-00006",
+      "receptionConfirmed": false
+    },
+    {
+      "id": "ord_ef816c27",
+      "userId": "u-client_78432953",
+      "status": "A_PREPARER",
+      "deliveryDate": "2026-02-22",
+      "deliveryAddress": "41 AVENUE DU GENERAL LECLERC",
+      "createdAt": "2026-02-18T23:01:14.918Z",
+      "lines": [
+        {
+          "productId": "vd-001",
+          "productName": "Steak hache 5% 5 kg",
+          "quantity": 4,
+          "unitPriceHt": 57.9,
+          "unitPriceTtc": 61.08,
+          "tvaRate": 5.5,
+          "lineTotalHt": 231.6,
+          "lineTotalTtc": 244.32,
+          "lineMarginEuro": 44.4,
+          "lineMarginPercent": 19.17
+        },
+        {
+          "productId": "bs-001",
+          "productName": "Jus d'orange 12 x 1L",
+          "quantity": 5,
+          "unitPriceHt": 21.76,
+          "unitPriceTtc": 26.11,
+          "tvaRate": 20,
+          "lineTotalHt": 108.8,
+          "lineTotalTtc": 130.55,
+          "lineMarginEuro": 30.3,
+          "lineMarginPercent": 27.85
+        }
+      ],
+      "totalHt": 340.4,
+      "totalTva": 34.47,
+      "totalTtc": 374.87,
+      "paymentId": "pay_8f9e18c5",
+      "invoiceNumber": "FAC-2026-00007",
+      "deliveryNoteNumber": "BL-2026-00007",
+      "receptionConfirmed": false
+    }
+  ],
+  "stockMovements": [
+    {
+      "id": "stm_84e754bd",
+      "productId": "prd_1104e86b",
+      "change": -1,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_29b06a68",
+      "createdAt": "2026-02-18T22:20:03.088Z"
+    },
+    {
+      "id": "stm_f8faa207",
+      "productId": "prd_1104e86b",
+      "change": -1,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_a4a42e97",
+      "createdAt": "2026-02-18T22:25:56.267Z"
+    },
+    {
+      "id": "stm_5264953e",
+      "productId": "prd_b6f80771",
+      "change": -4,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_e4460630",
+      "createdAt": "2026-02-18T22:27:41.315Z"
+    },
+    {
+      "id": "stm_f7e69a20",
+      "productId": "prd_6b9bd2fb",
+      "change": -4,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_e4460630",
+      "createdAt": "2026-02-18T22:27:41.315Z"
+    },
+    {
+      "id": "stm_ca1f8151",
+      "productId": "prd_1104e86b",
+      "change": -8,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_97a07e7a",
+      "createdAt": "2026-02-18T22:44:06.238Z"
+    },
+    {
+      "id": "stm_13a902bd",
+      "productId": "prd_1104e86b",
+      "change": -1,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_e0caa60e",
+      "createdAt": "2026-02-18T22:56:40.657Z"
+    },
+    {
+      "id": "stm_636277df",
+      "productId": "prd_1104e86b",
+      "change": -1,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_897fec4a",
+      "createdAt": "2026-02-18T22:58:26.975Z"
+    },
+    {
+      "id": "stm_4e25c5cb",
+      "productId": "vd-001",
+      "change": -4,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_ef816c27",
+      "createdAt": "2026-02-18T23:01:14.918Z"
+    },
+    {
+      "id": "stm_7efc8cdb",
+      "productId": "bs-001",
+      "change": -5,
+      "reason": "ORDER_CONFIRMED",
+      "relatedOrderId": "ord_ef816c27",
+      "createdAt": "2026-02-18T23:01:14.918Z"
+    }
+  ],
+  "recurringOrders": [],
+  "supportTickets": [],
+  "monthlyFixedCosts": 18000,
+  "lowMarginPercentAlert": 15,
+  "backups": []
+}

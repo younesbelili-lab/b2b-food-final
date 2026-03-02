@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#ffedd5"/>
+  <circle cx="420" cy="420" r="130" fill="#f97316"/>
+  <circle cx="620" cy="440" r="145" fill="#fb923c"/>
+  <circle cx="800" cy="400" r="120" fill="#ea580c"/>
+  <text x="70" y="710" font-size="64" font-family="Arial, sans-serif" fill="#1f2937">Oranges Navel 10 kg</text>
+</svg>

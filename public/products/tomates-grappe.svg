@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#ecfccb"/>
+  <circle cx="420" cy="430" r="120" fill="#ef4444"/>
+  <circle cx="560" cy="380" r="110" fill="#dc2626"/>
+  <circle cx="700" cy="430" r="120" fill="#b91c1c"/>
+  <circle cx="840" cy="380" r="110" fill="#ef4444"/>
+  <text x="70" y="710" font-size="64" font-family="Arial, sans-serif" fill="#1f2937">Tomates grappe 6 kg</text>
+</svg>
