@@ -33,3 +33,7 @@
   ],
   "exclude": ["node_modules"]
 }
+git add tsconfig.json
+git commit -m "fix: add baseUrl for @ alias"
+git push origin main
+
