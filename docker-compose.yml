@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16
+    container_name: freshpro-postgres
+    environment:
+      POSTGRES_USER: freshpro
+      POSTGRES_PASSWORD: freshpro
+      POSTGRES_DB: freshpro_b2b
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -1,0 +1,55 @@
+
+> b2b-food@0.1.0 dev
+> next dev --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://10.120.13.73:3000
+
+✓ Starting...
+✓ Ready in 5s
+○ Compiling / ...
+ GET / 200 in 16.7s (compile: 15.3s, proxy.ts: 587ms, render: 884ms)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app-paths-manifest.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app-paths-manifest.json',
+  page: '/'
+}
+○ Compiling /_error ...
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\routes-manifest.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\routes-manifest.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app-paths-manifest.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app-paths-manifest.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\routes-manifest.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\routes-manifest.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\routes-manifest.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\routes-manifest.json'
+}
+ GET / 500 in 17.1s (compile: 16.9s, proxy.ts: 44ms, render: 151ms)
+ GET / 500 in 17.1s (compile: 16.9s, proxy.ts: 44ms, render: 153ms)
+[?25h
+
+C:\Users\sabou\OneDrive\Documents\Projets\b2b-food>

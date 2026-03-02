@@ -1,0 +1,380 @@
+
+> b2b-food@0.1.0 dev
+> next dev --webpack -p 3040
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3040
+- Network:       http://192.168.0.15:3040
+
+✓ Starting...
+✓ Ready in 14.5s
+○ Compiling proxy ...
+○ Compiling /login/admin ...
+ GET /login/admin 200 in 34.7s (compile: 31.4s, proxy.ts: 908ms, render: 2.4s)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 303 in 5.5s (compile: 5.2s, proxy.ts: 90ms, render: 219ms)
+ GET /login/admin 200 in 801ms (compile: 266ms, proxy.ts: 138ms, render: 397ms)
+○ Compiling /catalogue ...
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /catalogue 200 in 6.8s (compile: 5.9s, proxy.ts: 138ms, render: 789ms)
+○ Compiling /api/auth/session ...
+ GET /api/auth/session 200 in 3.8s (compile: 3.6s, proxy.ts: 62ms, render: 161ms)
+ GET /api/products 200 in 1870ms (compile: 1716ms, proxy.ts: 123ms, render: 31ms)
+ DELETE /api/admin/products/prd_ff57ca86 200 in 3.4s (compile: 3.3s, proxy.ts: 21ms, render: 22ms)
+ GET /api/products 200 in 251ms (compile: 51ms, proxy.ts: 145ms, render: 56ms)
+ GET /catalogue 200 in 983ms (compile: 472ms, proxy.ts: 83ms, render: 427ms)
+ GET /catalogue 200 in 282ms (compile: 26ms, proxy.ts: 64ms, render: 191ms)
+ POST /api/admin/products 201 in 2.1s (compile: 1964ms, proxy.ts: 50ms, render: 116ms)
+ GET /api/products 200 in 238ms (compile: 88ms, proxy.ts: 112ms, render: 38ms)
+ GET /catalogue 200 in 813ms (compile: 164ms, proxy.ts: 96ms, render: 553ms)
+ PUT /api/admin/products/prd_1104e86b 200 in 154ms (compile: 80ms, proxy.ts: 17ms, render: 56ms)
+ GET /api/products 200 in 321ms (compile: 210ms, proxy.ts: 98ms, render: 12ms)
+ GET /catalogue 200 in 284ms (compile: 48ms, proxy.ts: 52ms, render: 184ms)
+○ Compiling /login/client ...
+ GET /login/client 200 in 11.1s (compile: 9.0s, proxy.ts: 361ms, render: 1663ms)
+ GET /catalogue 200 in 1230ms (compile: 291ms, proxy.ts: 309ms, render: 630ms)
+ GET /catalogue 200 in 1273ms (compile: 74ms, proxy.ts: 83ms, render: 1116ms)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 303 in 6.2s (compile: 5.0s, proxy.ts: 960ms, render: 191ms)
+ GET /catalogue 200 in 940ms (compile: 210ms, proxy.ts: 53ms, render: 677ms)
+ GET /api/auth/session 200 in 2.2s (compile: 2.1s, proxy.ts: 49ms, render: 99ms)
+ GET /api/products 200 in 1280ms (compile: 1219ms, proxy.ts: 26ms, render: 35ms)
+ GET /api/auth/session 200 in 83ms (compile: 31ms, proxy.ts: 26ms, render: 26ms)
+ GET /api/products 200 in 49ms (compile: 12ms, proxy.ts: 22ms, render: 15ms)
+ GET /api/auth/session 200 in 65ms (compile: 10ms, proxy.ts: 36ms, render: 19ms)
+ POST /api/auth/logout 200 in 2.0s (compile: 1946ms, proxy.ts: 31ms, render: 45ms)
+ GET /login/client 200 in 417ms (compile: 156ms, proxy.ts: 61ms, render: 201ms)
+ GET /login/client 200 in 444ms (compile: 27ms, proxy.ts: 250ms, render: 167ms)
+ POST /api/auth/login 303 in 81ms (compile: 24ms, proxy.ts: 26ms, render: 31ms)
+ GET /catalogue 200 in 1064ms (compile: 38ms, proxy.ts: 24ms, render: 1002ms)
+ GET /api/auth/session 200 in 368ms (compile: 40ms, proxy.ts: 306ms, render: 22ms)
+ GET /catalogue 200 in 765ms (compile: 100ms, proxy.ts: 236ms, render: 429ms)
+ GET /api/products 200 in 104ms (compile: 29ms, proxy.ts: 55ms, render: 20ms)
+ GET /api/auth/session 200 in 47ms (compile: 11ms, proxy.ts: 21ms, render: 15ms)
+ GET /api/products 200 in 42ms (compile: 8ms, proxy.ts: 24ms, render: 11ms)
+ GET /catalogue 200 in 1347ms (compile: 1076ms, proxy.ts: 46ms, render: 226ms)
+ GET /api/auth/session 200 in 2.1s (compile: 2.1s, proxy.ts: 20ms, render: 50ms)
+ GET /api/products 200 in 2.1s (compile: 2.0s, proxy.ts: 22ms, render: 37ms)
+ GET /api/orders 200 in 2.5s (compile: 2.4s, proxy.ts: 26ms, render: 37ms)
+ GET /catalogue 200 in 14.8s (compile: 1443ms, proxy.ts: 10.5s, render: 2.8s)
+ GET /api/auth/session 200 in 987ms (compile: 750ms, proxy.ts: 189ms, render: 47ms)
+ GET /login/client 200 in 4.7s (compile: 339ms, proxy.ts: 3.3s, render: 1071ms)
+ GET /api/products 200 in 189ms (compile: 76ms, proxy.ts: 25ms, render: 88ms)
+ GET /api/orders 200 in 87ms (compile: 24ms, proxy.ts: 39ms, render: 24ms)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 303 in 7.3s (compile: 7.2s, proxy.ts: 56ms, render: 85ms)
+ GET /login/client 200 in 1063ms (compile: 790ms, proxy.ts: 38ms, render: 236ms)
+ GET /catalogue 200 in 1470ms (compile: 191ms, proxy.ts: 415ms, render: 864ms)
+ GET /catalogue 200 in 581ms (compile: 98ms, proxy.ts: 82ms, render: 401ms)
+ GET /api/auth/session 200 in 70ms (compile: 17ms, proxy.ts: 30ms, render: 23ms)
+ GET /api/products 200 in 104ms (compile: 40ms, proxy.ts: 37ms, render: 27ms)
+ GET /api/orders 200 in 101ms (compile: 15ms, proxy.ts: 63ms, render: 24ms)
+ GET /api/orders 200 in 53ms (compile: 9ms, proxy.ts: 34ms, render: 10ms)
+ GET /api/auth/session 200 in 35ms (compile: 7ms, proxy.ts: 18ms, render: 11ms)
+ GET /api/products 200 in 36ms (compile: 9ms, proxy.ts: 16ms, render: 11ms)
+ GET /api/orders 200 in 56ms (compile: 9ms, proxy.ts: 22ms, render: 24ms)
+○ Compiling /commander ...
+ GET /commander?cart=prd_1104e86b%3A1%2Cprd_930598f7%3A3 200 in 4.9s (compile: 4.8s, proxy.ts: 26ms, render: 136ms)
+ GET /api/products 200 in 176ms (compile: 95ms, proxy.ts: 31ms, render: 51ms)
+○ Compiling /api/client/overview ...
+ GET /api/client/overview 200 in 5.0s (compile: 4.9s, proxy.ts: 31ms, render: 38ms)
+ GET /api/products 200 in 294ms (compile: 44ms, proxy.ts: 222ms, render: 28ms)
+ GET /api/client/overview 200 in 131ms (compile: 54ms, proxy.ts: 64ms, render: 14ms)
+ POST /api/checkout 200 in 2.1s (compile: 2.0s, proxy.ts: 40ms, render: 63ms)
+ GET /api/client/overview 200 in 462ms (compile: 271ms, proxy.ts: 95ms, render: 96ms)
+ GET /commander?cart=prd_1104e86b%3A1%2Cprd_930598f7%3A3 200 in 296ms (compile: 93ms, proxy.ts: 49ms, render: 153ms)
+ GET /catalogue 200 in 159ms (compile: 40ms, proxy.ts: 22ms, render: 97ms)
+ GET /api/orders/ord_cac69f99/invoice 404 in 4.5s (compile: 4.4s, proxy.ts: 33ms, render: 58ms)
+ GET /api/orders/ord_cac69f99/invoice 404 in 117ms (compile: 68ms, proxy.ts: 32ms, render: 17ms)
+ GET /api/orders 200 in 66ms (compile: 23ms, proxy.ts: 22ms, render: 21ms)
+ GET /catalogue 200 in 978ms (compile: 165ms, proxy.ts: 78ms, render: 736ms)
+ GET /api/auth/session 200 in 103ms (compile: 41ms, proxy.ts: 42ms, render: 19ms)
+ GET /api/orders 200 in 122ms (compile: 64ms, proxy.ts: 42ms, render: 15ms)
+ GET /api/products 200 in 55ms (compile: 18ms, proxy.ts: 23ms, render: 14ms)
+ GET /api/orders 200 in 36ms (compile: 9ms, proxy.ts: 18ms, render: 9ms)
+ GET /catalogue 200 in 1374ms (compile: 787ms, proxy.ts: 43ms, render: 544ms)
+ GET /catalogue 200 in 137ms (compile: 16ms, proxy.ts: 28ms, render: 93ms)
+ GET /catalogue 200 in 416ms (compile: 10ms, proxy.ts: 14ms, render: 393ms)
+ GET /catalogue 200 in 1434ms (compile: 1052ms, proxy.ts: 55ms, render: 327ms)
+ GET /login/client 200 in 1950ms (compile: 511ms, proxy.ts: 218ms, render: 1221ms)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 303 in 6.5s (compile: 6.3s, proxy.ts: 44ms, render: 162ms)
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/login/client'
+}
+ GET /login/client 500 in 2.6s (compile: 1178ms, proxy.ts: 100ms, render: 1336ms)
+ GET /catalogue 200 in 3.0s (compile: 642ms, proxy.ts: 99ms, render: 2.3s)
+○ Compiling /_error ...
+○ Compiling /api/auth/session ...
+ GET /api/auth/session 200 in 3.9s (compile: 3.8s, proxy.ts: 35ms, render: 72ms)
+ GET /api/products 200 in 1695ms (compile: 1609ms, proxy.ts: 38ms, render: 48ms)
+ GET /catalogue 200 in 872ms (compile: 218ms, proxy.ts: 42ms, render: 613ms)
+○ Compiling /api/orders ...
+ GET /api/orders 200 in 4.6s (compile: 4.5s, proxy.ts: 43ms, render: 39ms)
+ GET /catalogue 200 in 514ms (compile: 202ms, proxy.ts: 27ms, render: 285ms)
+ GET /api/orders 200 in 117ms (compile: 17ms, proxy.ts: 48ms, render: 52ms)
+ GET /commander?cart=prd_1104e86b%3A2%2Cprd_930598f7%3A5 200 in 149ms (compile: 44ms, proxy.ts: 31ms, render: 74ms)
+ GET /api/products 200 in 71ms (compile: 33ms, proxy.ts: 24ms, render: 13ms)
+○ Compiling /api/client/overview ...
+ GET /api/client/overview 200 in 3.6s (compile: 3.5s, proxy.ts: 24ms, render: 45ms)
+ GET /api/products 200 in 399ms (compile: 68ms, proxy.ts: 284ms, render: 46ms)
+ GET /api/client/overview 200 in 246ms (compile: 113ms, proxy.ts: 118ms, render: 16ms)
+ GET /commander?cart=prd_1104e86b%3A2%2Cprd_930598f7%3A5 200 in 461ms (compile: 228ms, proxy.ts: 118ms, render: 115ms)
+ POST /api/checkout 200 in 2.3s (compile: 2.2s, proxy.ts: 31ms, render: 58ms)
+ GET /api/client/overview 200 in 561ms (compile: 106ms, proxy.ts: 401ms, render: 55ms)
+ GET /commander?cart=prd_1104e86b%3A2%2Cprd_930598f7%3A5 200 in 1862ms (compile: 1212ms, proxy.ts: 403ms, render: 248ms)
+ GET /commander?cart=prd_1104e86b%3A2%2Cprd_930598f7%3A5 200 in 2.2s (compile: 1101ms, proxy.ts: 140ms, render: 926ms)
+ GET /commander?cart=prd_1104e86b%3A2%2Cprd_930598f7%3A5 200 in 214ms (compile: 20ms, proxy.ts: 60ms, render: 134ms)
+ GET /catalogue 200 in 194ms (compile: 47ms, proxy.ts: 44ms, render: 103ms)
+ GET /api/auth/session 200 in 78ms (compile: 30ms, proxy.ts: 21ms, render: 27ms)
+ GET /api/auth/session 200 in 78ms (compile: 30ms, proxy.ts: 21ms, render: 27ms)
+ GET /api/products 200 in 77ms (compile: 28ms, proxy.ts: 17ms, render: 32ms)
+ GET /api/products 200 in 77ms (compile: 27ms, proxy.ts: 18ms, render: 32ms)
+ GET /api/orders 200 in 377ms (compile: 83ms, proxy.ts: 150ms, render: 144ms)
+ GET /api/orders 200 in 377ms (compile: 90ms, proxy.ts: 151ms, render: 136ms)
+ GET /api/orders 200 in 46ms (compile: 8ms, proxy.ts: 25ms, render: 14ms)
+ GET /login/admin 200 in 1477ms (compile: 270ms, proxy.ts: 530ms, render: 677ms)
+ GET /catalogue 200 in 622ms (compile: 15ms, proxy.ts: 35ms, render: 571ms)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 303 in 7.6s (compile: 7.4s, proxy.ts: 115ms, render: 86ms)
+ POST /api/auth/login 303 in 92ms (compile: 25ms, proxy.ts: 53ms, render: 15ms)
+ GET /login/admin 200 in 576ms (compile: 265ms, proxy.ts: 51ms, render: 260ms)
+ GET /catalogue 200 in 689ms (compile: 101ms, proxy.ts: 57ms, render: 531ms)
+ GET /api/auth/session 200 in 461ms (compile: 117ms, proxy.ts: 233ms, render: 111ms)
+ GET /api/products 200 in 224ms (compile: 68ms, proxy.ts: 92ms, render: 64ms)
+ GET /api/orders 200 in 428ms (compile: 74ms, proxy.ts: 272ms, render: 82ms)
+ GET /api/orders 200 in 386ms (compile: 142ms, proxy.ts: 144ms, render: 99ms)
+ GET /api/auth/session 200 in 296ms (compile: 88ms, proxy.ts: 82ms, render: 127ms)
+ GET /api/products 200 in 154ms (compile: 4ms, proxy.ts: 77ms, render: 73ms)
+ GET /api/orders 200 in 89ms (compile: 10ms, proxy.ts: 72ms, render: 8ms)
+ GET /api/orders 200 in 164ms (compile: 28ms, proxy.ts: 102ms, render: 34ms)
+ POST /api/auth/login 200 in 2.5s (compile: 987ms, proxy.ts: 969ms, render: 518ms)
+ GET /api/products 200 in 524ms (compile: 22ms, proxy.ts: 455ms, render: 48ms)
+○ Compiling /api/checkout ...
+ POST /api/checkout 200 in 10.1s (compile: 9.9s, proxy.ts: 30ms, render: 178ms)
+ POST /api/auth/login 200 in 641ms (compile: 104ms, proxy.ts: 500ms, render: 37ms)
+○ Compiling /api/orders ...
+ GET /api/orders 200 in 4.1s (compile: 3.9s, proxy.ts: 204ms, render: 55ms)
+ GET /catalogue 200 in 4.8s (compile: 457ms, proxy.ts: 3.8s, render: 493ms)
+ GET /catalogue 200 in 488ms (compile: 29ms, proxy.ts: 177ms, render: 282ms)
+ GET /catalogue 200 in 504ms (compile: 26ms, proxy.ts: 164ms, render: 314ms)
+ POST /api/auth/login 200 in 3.4s (compile: 3.3s, proxy.ts: 45ms, render: 86ms)
+ GET /api/products 200 in 1198ms (compile: 1128ms, proxy.ts: 29ms, render: 41ms)
+○ Compiling /api/checkout ...
+ POST /api/checkout 200 in 4.3s (compile: 4.1s, proxy.ts: 19ms, render: 105ms)
+ POST /api/auth/login 200 in 490ms (compile: 201ms, proxy.ts: 201ms, render: 88ms)
+○ Compiling /api/orders ...
+ GET /api/orders 200 in 6.8s (compile: 6.7s, proxy.ts: 33ms, render: 56ms)
+ GET /catalogue 200 in 13.9s (compile: 4.0s, proxy.ts: 1048ms, render: 8.9s)
+ GET /catalogue 200 in 2.6s (compile: 45ms, proxy.ts: 1616ms, render: 908ms)
+ GET /login/client 200 in 2.8s (compile: 243ms, proxy.ts: 1616ms, render: 968ms)
+ GET /catalogue 200 in 594ms (compile: 129ms, proxy.ts: 203ms, render: 262ms)
+ GET /catalogue 200 in 231ms (compile: 29ms, proxy.ts: 85ms, render: 117ms)
+ GET /catalogue 200 in 179ms (compile: 38ms, proxy.ts: 43ms, render: 98ms)
+ GET /catalogue 200 in 219ms (compile: 19ms, proxy.ts: 55ms, render: 144ms)
+ GET /catalogue 200 in 203ms (compile: 40ms, proxy.ts: 46ms, render: 118ms)
+ GET /catalogue 200 in 276ms (compile: 23ms, proxy.ts: 70ms, render: 184ms)
+ GET /catalogue 200 in 394ms (compile: 27ms, proxy.ts: 78ms, render: 290ms)
+ GET /catalogue 200 in 158ms (compile: 19ms, proxy.ts: 30ms, render: 110ms)
+ GET /catalogue 200 in 134ms (compile: 18ms, proxy.ts: 43ms, render: 74ms)
+ GET /catalogue 200 in 1278ms (compile: 177ms, proxy.ts: 103ms, render: 998ms)
+ POST /api/auth/login 303 in 138ms (compile: 46ms, proxy.ts: 63ms, render: 30ms)
+ GET /catalogue 200 in 315ms (compile: 14ms, proxy.ts: 21ms, render: 280ms)
+○ Compiling /api/auth/session ...
+ GET /api/auth/session 200 in 5.6s (compile: 5.5s, proxy.ts: 69ms, render: 42ms)
+ GET /api/auth/session 200 in 293ms (compile: 21ms, proxy.ts: 257ms, render: 15ms)
+○ Compiling /api/products ...
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[Error: EBUSY: resource busy or locked, open 'C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\server\app\api\products\route_client-reference-manifest.js'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'C:\\Users\\sabou\\OneDrive\\Documents\\Projets\\b2b-food\\.next\\dev\\server\\app\\api\\products\\route_client-reference-manifest.js'
+}
+[?25h

@@ -1,0 +1,10 @@
+
+> b2b-food@0.1.0 start
+> next start -p 3081
+
+▲ Next.js 16.1.6
+- Local:         http://localhost:3081
+- Network:       http://10.120.13.73:3081
+
+✓ Starting...
+✓ Ready in 2.3s

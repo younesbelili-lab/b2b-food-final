@@ -1,0 +1,12 @@
+
+> b2b-food@0.1.0 dev
+> next dev --webpack -p 3050
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3050
+- Network:       http://192.168.0.15:3050
+
+✓ Starting...
+⨯ Unable to acquire lock at C:\Users\sabou\OneDrive\Documents\Projets\b2b-food\.next\dev\lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h
