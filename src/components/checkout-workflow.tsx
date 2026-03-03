@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 type Product = {
@@ -71,6 +71,7 @@ function getMinDeliveryDateIso(now = new Date()): string {
 }
 
 export function CheckoutWorkflow() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const fromCatalogue = Boolean(searchParams.get("cart"));
   const [products, setProducts] = useState<Product[]>([]);
@@ -94,6 +95,13 @@ export function CheckoutWorkflow() {
 
   useEffect(() => {
     void Promise.all([
+      fetch("/api/auth/session", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data?.authenticated || data?.role !== "CLIENT") {
+            router.replace("/login/client");
+          }
+        }),
       fetch("/api/products")
         .then((res) => res.json())
         .then((data) => setProducts(data.items ?? [])),
@@ -102,7 +110,7 @@ export function CheckoutWorkflow() {
         .then((res) => res.json())
         .then((data) => setDeliveryAddress(data.item?.address ?? "")),
     ]);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!products.length || cartLoaded) {
@@ -168,6 +176,10 @@ export function CheckoutWorkflow() {
       });
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login/client");
+          return;
+        }
         throw new Error(data.error ?? "Erreur checkout.");
       }
       setSuccess(data.order);

@@ -14,7 +14,7 @@ export async function PATCH(
   try {
     const params = await context.params;
     const body = await request.json();
-    const order = updateOrderStatus(params.id, body.status as OrderStatus);
+    const order = await updateOrderStatus(params.id, body.status as OrderStatus);
     return NextResponse.json({ item: order });
   } catch (error) {
     return NextResponse.json(

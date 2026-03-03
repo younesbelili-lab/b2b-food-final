@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const user = ensureClientUserByEmail(session.email, {
+    const user = await ensureClientUserByEmail(session.email, {
       address: String(body.deliveryAddress ?? "").trim(),
     });
     const paymentMethod = body.paymentMethod as PaymentMethod;
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const order = createCheckout({
+    const order = await createCheckout({
       userId: user.id,
       lines: body.lines ?? [],
       paymentMethod,

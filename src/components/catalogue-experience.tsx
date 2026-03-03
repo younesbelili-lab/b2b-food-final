@@ -244,9 +244,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   }
 
   async function reloadAdminClients() {
-    if (sessionRole !== "ADMIN") {
-      return;
-    }
     try {
       const response = await fetch("/api/admin/clients", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
@@ -293,20 +290,28 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
         const response = await fetch("/api/auth/session", { cache: "no-store" });
         if (!response.ok) {
           setSessionRole("");
+          router.replace("/login/client");
           return;
         }
         const data = await response.json();
+        if (!data?.authenticated) {
+          setSessionRole("");
+          router.replace("/login/client");
+          return;
+        }
         const role = data?.role === "ADMIN" ? "ADMIN" : "CLIENT";
         setSessionRole(role);
         setActiveTab(role === "ADMIN" ? "admin-add" : "catalogue");
       } catch {
         setSessionRole("");
+        router.replace("/login/client");
+        return;
       }
       await reloadProducts();
       await reloadOrders();
       await reloadAdminClients();
     })();
-  }, [sessionRole]);
+  }, [router]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -314,6 +319,44 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!sessionRole) {
+      return;
+    }
+    const interval = setInterval(() => {
+      void reloadProducts();
+      void reloadOrders();
+      if (sessionRole === "ADMIN") {
+        void reloadAdminClients();
+        if (selectedClientId) {
+          void loadAdminClientProfile(selectedClientId);
+        }
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [sessionRole, selectedClientId]);
+
+  useEffect(() => {
+    if (!sessionRole) {
+      return;
+    }
+    function onVisible() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      void reloadProducts();
+      void reloadOrders();
+      if (sessionRole === "ADMIN") {
+        void reloadAdminClients();
+        if (selectedClientId) {
+          void loadAdminClientProfile(selectedClientId);
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [sessionRole, selectedClientId]);
 
   const productSubcategoryOptions = useMemo(
     () => subcategoryOptionsByCategory(productCategory),
@@ -527,7 +570,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       const sessionData = await sessionResponse.json().catch(() => ({}));
       if (!sessionResponse.ok || sessionData?.role !== "ADMIN") {
         setProductFeedback("Session admin invalide. Connecte-toi en tant qu'admin.");
-        router.push("/login/admin");
         return;
       }
 
@@ -550,7 +592,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       if (!response.ok) {
         if (response.status === 403) {
           setProductFeedback("Acces admin refuse. Reconnecte-toi en admin.");
-          router.push("/login/admin");
           return;
         }
         setProductFeedback(data.error ?? "Erreur lors de l'ajout du produit.");
@@ -599,7 +640,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       if (!response.ok) {
         if (response.status === 403) {
           setAdminActionFeedback("Acces admin refuse. Reconnecte-toi en admin.");
-          router.push("/login/admin");
           return;
         }
         setAdminActionFeedback(data.error ?? "Erreur modification produit.");
@@ -629,7 +669,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       if (!response.ok) {
         if (response.status === 403) {
           setAdminActionFeedback("Acces admin refuse. Reconnecte-toi en admin.");
-          router.push("/login/admin");
           return;
         }
         setAdminActionFeedback(data.error ?? "Erreur suppression produit.");

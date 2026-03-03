@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listProducts } from "@/lib/store";
 
-export function GET(request: NextRequest) {
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get("category");
   const promotion = request.nextUrl.searchParams.get("promotion") === "1";
 
-  const products = listProducts().filter((product) => {
+  const products = (await listProducts()).filter((product) => {
     if (category && product.category !== category) {
       return false;
     }

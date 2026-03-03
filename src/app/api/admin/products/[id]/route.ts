@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest, context: Context) {
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const product = updateAdminProduct(id, {
+    const product = await updateAdminProduct(id, {
       name: body.name,
       origin: body.origin,
       category: body.category,
@@ -44,7 +44,7 @@ export async function DELETE(request: NextRequest, context: Context) {
   }
   try {
     const { id } = await context.params;
-    const product = deleteAdminProduct(id);
+    const product = await deleteAdminProduct(id);
     return NextResponse.json({ item: product });
   } catch (error) {
     return NextResponse.json(

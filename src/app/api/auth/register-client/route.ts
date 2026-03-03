@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createClientSignupToken,
+  createSessionToken,
   getClientSignupCookieName,
+  getSessionCookieName,
   shouldUseSecureCookie,
 } from "@/lib/auth";
 import { createClientUser } from "@/lib/store";
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const user = createClientUser({ companyName, email, phone, address, password });
+    const user = await createClientUser({ companyName, email, phone, address, password });
     const signupToken = createClientSignupToken({
       email: user.email,
       password,
@@ -41,11 +43,9 @@ export async function POST(request: NextRequest) {
       phone,
       address,
     });
+    const sessionToken = createSessionToken("CLIENT", user.email);
     if (isFormSubmit) {
-      const redirectUrl = new URL(
-        "/login/client?registered=1",
-        request.url,
-      );
+      const redirectUrl = new URL("/catalogue", request.url);
       const response = NextResponse.redirect(redirectUrl, 303);
       response.cookies.set(getClientSignupCookieName(), signupToken, {
         httpOnly: true,
@@ -54,10 +54,17 @@ export async function POST(request: NextRequest) {
         path: "/",
         maxAge: 60 * 60,
       });
+      response.cookies.set(getSessionCookieName(), sessionToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: shouldUseSecureCookie(request.nextUrl.hostname),
+        path: "/",
+        maxAge: 60 * 60 * 12,
+      });
       return response;
     }
     const response = NextResponse.json(
-      { item: { email: user.email, companyName: user.companyName } },
+      { item: { email: user.email, companyName: user.companyName }, authenticated: true },
       { status: 201 },
     );
     response.cookies.set(getClientSignupCookieName(), signupToken, {
@@ -66,6 +73,13 @@ export async function POST(request: NextRequest) {
       secure: shouldUseSecureCookie(request.nextUrl.hostname),
       path: "/",
       maxAge: 60 * 60,
+    });
+    response.cookies.set(getSessionCookieName(), sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: shouldUseSecureCookie(request.nextUrl.hostname),
+      path: "/",
+      maxAge: 60 * 60 * 12,
     });
     return response;
   } catch (error) {

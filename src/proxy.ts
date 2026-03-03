@@ -21,11 +21,26 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  if (isAuthenticated && isRootLoginPage) {
+    const target = session.role === "ADMIN" ? "/admin" : "/catalogue";
+    return NextResponse.redirect(new URL(target, request.url));
+  }
+
+  if (isAuthenticated && pathname === "/login/admin") {
+    const target = session.role === "ADMIN" ? "/admin" : "/catalogue";
+    return NextResponse.redirect(new URL(target, request.url));
+  }
+
+  if (isAuthenticated && pathname === "/login/client") {
+    const target = session.role === "CLIENT" ? "/catalogue" : "/admin";
+    return NextResponse.redirect(new URL(target, request.url));
+  }
+
   if (isAuthenticated && session.role !== "ADMIN" && (isAdminPage || isAdminApi)) {
     if (isAdminApi) {
       return NextResponse.json({ error: "Acces admin refuse." }, { status: 403 });
     }
-    return NextResponse.redirect(new URL("/catalogue", request.url));
+    return NextResponse.redirect(new URL("/login/admin", request.url));
   }
 
   const response = NextResponse.next();

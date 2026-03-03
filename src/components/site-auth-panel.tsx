@@ -48,7 +48,7 @@ export function SiteAuthPanel() {
     }
     setAuthenticated(true);
     setCurrentRole(data.role);
-    router.push("/catalogue");
+    router.push(data.role === "ADMIN" ? "/admin" : "/catalogue");
     router.refresh();
   }
 

@@ -5,7 +5,7 @@ type Params = Promise<{ id: string }>;
 
 export async function GET(_: NextRequest, context: { params: Params }) {
   const params = await context.params;
-  const order = getOrderById(params.id);
+  const order = await getOrderById(params.id);
   if (!order) {
     return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
   }
@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
 
   if (body.action === "confirmReception") {
     try {
-      const order = confirmReception(params.id);
+      const order = await confirmReception(params.id);
       return NextResponse.json({ item: order });
     } catch (error) {
       return NextResponse.json(

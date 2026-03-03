@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/security";
 import { addAdminProduct, listProducts } from "@/lib/store";
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "Acces admin refuse." }, { status: 403 });
   }
-  return NextResponse.json({ items: listProducts() });
+  return NextResponse.json({ items: await listProducts() });
 }
 
 export async function POST(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const body = await request.json();
-    const product = addAdminProduct({
+    const product = await addAdminProduct({
       name: body.name,
       origin: body.origin,
       category: body.category,

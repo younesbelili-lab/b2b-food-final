@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const credentials = getCredentialsByRole(role);
-  let clientAccount = role === "CLIENT" ? verifyClientCredentials(email, password) : null;
+  let clientAccount = role === "CLIENT" ? await verifyClientCredentials(email, password) : null;
   if (!clientAccount && role === "CLIENT") {
     const signupToken = request.cookies.get(getClientSignupCookieName())?.value;
     const pendingClient = verifyClientSignupToken(signupToken);
@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
       pendingClient.email === email &&
       pendingClient.password === password
     ) {
-      ensureClientUserByEmail(pendingClient.email, {
+      await ensureClientUserByEmail(pendingClient.email, {
         companyName: pendingClient.companyName,
         phone: pendingClient.phone,
         address: pendingClient.address,
         password: pendingClient.password,
       });
-      clientAccount = verifyClientCredentials(email, password);
+      clientAccount = await verifyClientCredentials(email, password);
     }
   }
   const loginEmail = clientAccount?.email ?? credentials.email;
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = createSessionToken(role, loginEmail);
-  const redirectPath = "/catalogue";
+  const redirectPath = role === "ADMIN" ? "/admin" : "/catalogue";
   const response = isFormSubmit
     ? NextResponse.redirect(new URL(redirectPath, request.url), 303)
     : NextResponse.json({ ok: true, role, email: loginEmail });

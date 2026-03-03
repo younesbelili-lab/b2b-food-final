@@ -22,7 +22,7 @@ export default async function CataloguePage() {
   const session = verifySessionToken(token);
   const pageTitle = session?.role === "ADMIN" ? "Administration" : "Catalogue";
 
-  const products: CatalogueProduct[] = listProducts()
+  const products: CatalogueProduct[] = (await listProducts())
     .filter((product) => product.stock > 0)
     .map((product) => ({
       id: product.id,

@@ -1,5 +1,6 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
+import { sql } from "@vercel/postgres";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -135,6 +136,7 @@ const DATA_ROOT_PATH = process.env.VERCEL
 const PRODUCTS_FILE_PATH = path.join(DATA_ROOT_PATH, "products-db.json");
 const USERS_FILE_PATH = path.join(DATA_ROOT_PATH, "users-db.json");
 const RUNTIME_STATE_FILE_PATH = path.join(DATA_ROOT_PATH, "runtime-db.json");
+const DB_STATE_KEY = "primary";
 
 type RuntimeState = {
   payments: Payment[];
@@ -146,6 +148,90 @@ type RuntimeState = {
   lowMarginPercentAlert: number;
   backups: Array<{ id: string; createdAt: string; reason: string; bytes: number }>;
 };
+
+type PersistedDbState = {
+  users: User[];
+  products: Product[];
+  runtime: RuntimeState;
+};
+
+let dbSchemaReady: Promise<void> | null = null;
+let lastDatabaseReadFailed = false;
+
+function isDatabaseEnabled() {
+  return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+}
+
+export function getStorageStatus() {
+  const vercel = Boolean(process.env.VERCEL);
+  const database = isDatabaseEnabled();
+  return {
+    vercel,
+    database,
+    durable: !vercel || database,
+    message:
+      !vercel || database
+        ? "Stockage durable actif."
+        : "Stockage non durable sur Vercel: configure DATABASE_URL (ou POSTGRES_URL).",
+  };
+}
+
+async function ensureDbSchema() {
+  if (!isDatabaseEnabled()) {
+    return;
+  }
+  if (!dbSchemaReady) {
+    dbSchemaReady = (async () => {
+      await sql`
+        CREATE TABLE IF NOT EXISTS app_state (
+          key TEXT PRIMARY KEY,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+    })();
+  }
+  await dbSchemaReady;
+}
+
+async function readDatabaseState(): Promise<PersistedDbState | null> {
+  if (!isDatabaseEnabled()) {
+    lastDatabaseReadFailed = false;
+    return null;
+  }
+  try {
+    lastDatabaseReadFailed = false;
+    await ensureDbSchema();
+    const result = await sql<{ data: PersistedDbState }>`
+      SELECT data
+      FROM app_state
+      WHERE key = ${DB_STATE_KEY}
+      LIMIT 1
+    `;
+    if (!result.rows.length) {
+      return null;
+    }
+    return result.rows[0].data ?? null;
+  } catch (error) {
+    lastDatabaseReadFailed = true;
+    console.warn("Read database state failed:", error);
+    return null;
+  }
+}
+
+async function persistDatabaseState(snapshot: PersistedDbState) {
+  if (!isDatabaseEnabled()) {
+    return;
+  }
+  await ensureDbSchema();
+  const json = JSON.stringify(snapshot);
+  await sql`
+    INSERT INTO app_state (key, data, updated_at)
+    VALUES (${DB_STATE_KEY}, ${json}::jsonb, NOW())
+    ON CONFLICT (key)
+    DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+  `;
+}
 
 function readPersistedProducts(): Product[] | null {
   try {
@@ -315,7 +401,21 @@ function applyRuntimeSnapshot(runtime: RuntimeState) {
   state.backups = runtime.backups ?? [];
 }
 
-function syncSharedStateFromDisk() {
+async function syncSharedStateFromDisk() {
+  const dbState = await readDatabaseState();
+  if (dbState) {
+    state.users = Array.isArray(dbState.users) ? dbState.users : state.users;
+    state.products = Array.isArray(dbState.products) ? dbState.products : state.products;
+    if (dbState.runtime) {
+      applyRuntimeSnapshot(dbState.runtime);
+    }
+    return;
+  }
+  if (isDatabaseEnabled() && lastDatabaseReadFailed) {
+    // Do not overwrite remote DB with local fallback when DB read failed transiently.
+    return;
+  }
+
   const persistedUsers = readPersistedUsers();
   if (persistedUsers) {
     state.users = persistedUsers;
@@ -328,15 +428,36 @@ function syncSharedStateFromDisk() {
   if (runtime) {
     applyRuntimeSnapshot(runtime);
   }
+
+  if (isDatabaseEnabled()) {
+    await persistDatabaseState({
+      users: state.users,
+      products: state.products,
+      runtime: getRuntimeSnapshot(),
+    });
+  }
 }
 
-function persistSharedState() {
+async function persistSharedState() {
+  if (process.env.VERCEL && !isDatabaseEnabled()) {
+    throw new Error(
+      "Persistence indisponible: configure DATABASE_URL (ou POSTGRES_URL) sur Vercel pour sauvegarder durablement.",
+    );
+  }
+  if (isDatabaseEnabled()) {
+    await persistDatabaseState({
+      users: state.users,
+      products: state.products,
+      runtime: getRuntimeSnapshot(),
+    });
+    return;
+  }
   persistUsers(state.users);
   persistProducts(state.products);
   persistRuntimeState(getRuntimeSnapshot());
 }
 
-if (!readRuntimeState()) {
+if (!isDatabaseEnabled() && !readRuntimeState()) {
   persistRuntimeState(getRuntimeSnapshot());
 }
 
@@ -408,12 +529,12 @@ function processPayment(method: PaymentMethod): { ok: boolean; transactionRef: s
   };
 }
 
-export function listProducts() {
-  syncSharedStateFromDisk();
+export async function listProducts() {
+  await syncSharedStateFromDisk();
   return state.products;
 }
 
-export function addAdminProduct(input: {
+export async function addAdminProduct(input: {
   name: string;
   origin: string;
   category: Product["category"];
@@ -425,8 +546,8 @@ export function addAdminProduct(input: {
   stock?: number;
   description?: string;
   image?: string;
-}): Product {
-  syncSharedStateFromDisk();
+}): Promise<Product> {
+  await syncSharedStateFromDisk();
   if (!input.name?.trim()) {
     throw new Error("Le nom du produit est obligatoire.");
   }
@@ -457,11 +578,16 @@ export function addAdminProduct(input: {
   };
 
   state.products.unshift(product);
-  persistSharedState();
+  try {
+    await persistSharedState();
+  } catch (error) {
+    state.products = state.products.filter((item) => item.id !== product.id);
+    throw error;
+  }
   return product;
 }
 
-export function updateAdminProduct(
+export async function updateAdminProduct(
   productId: string,
   input: Partial<{
     name: string;
@@ -479,8 +605,8 @@ export function updateAdminProduct(
     isSlowMover: boolean;
     promoPercent: number;
   }>,
-): Product {
-  syncSharedStateFromDisk();
+): Promise<Product> {
+  await syncSharedStateFromDisk();
   const product = state.products.find((item) => item.id === productId);
   if (!product) {
     throw new Error("Produit introuvable.");
@@ -554,38 +680,38 @@ export function updateAdminProduct(
     }
   }
 
-  persistSharedState();
+  await persistSharedState();
   return product;
 }
 
-export function deleteAdminProduct(productId: string) {
-  syncSharedStateFromDisk();
+export async function deleteAdminProduct(productId: string) {
+  await syncSharedStateFromDisk();
   const index = state.products.findIndex((item) => item.id === productId);
   if (index < 0) {
     throw new Error("Produit introuvable.");
   }
   const [removed] = state.products.splice(index, 1);
-  persistSharedState();
+  await persistSharedState();
   return removed;
 }
 
-export function listOrdersByUser(userId: string): Order[] {
-  syncSharedStateFromDisk();
+export async function listOrdersByUser(userId: string): Promise<Order[] > {
+  await syncSharedStateFromDisk();
   return state.orders.filter((order) => order.userId === userId);
 }
 
-export function listAllOrders(): Order[] {
-  syncSharedStateFromDisk();
+export async function listAllOrders(): Promise<Order[] > {
+  await syncSharedStateFromDisk();
   return state.orders;
 }
 
-export function getOrderById(orderId: string): Order | undefined {
-  syncSharedStateFromDisk();
+export async function getOrderById(orderId: string): Promise<Order | undefined > {
+  await syncSharedStateFromDisk();
   return state.orders.find((order) => order.id === orderId);
 }
 
-export function createCheckout(input: CheckoutInput): Order {
-  syncSharedStateFromDisk();
+export async function createCheckout(input: CheckoutInput): Promise<Order > {
+  await syncSharedStateFromDisk();
   if (!isDeliveryDateAllowed(input.deliveryDate)) {
     throw new Error("La date de livraison ne respecte pas la regle J+1/J+2.");
   }
@@ -669,7 +795,7 @@ export function createCheckout(input: CheckoutInput): Order {
       createdAt,
     });
   }
-  persistSharedState();
+  await persistSharedState();
 
   const invoiceIndex = state.orders.length + 1;
   const order: Order = {
@@ -691,17 +817,17 @@ export function createCheckout(input: CheckoutInput): Order {
 
   state.payments.push(payment);
   state.orders.push(order);
-  persistSharedState();
+  await persistSharedState();
   return order;
 }
 
-export function createRecurringOrder(input: {
+export async function createRecurringOrder(input: {
   userId: string;
   frequency: RecurringOrder["frequency"];
   nextRunAt: string;
   lines: Array<{ productId: string; quantity: number }>;
-}): RecurringOrder {
-  syncSharedStateFromDisk();
+}): Promise<RecurringOrder> {
+  await syncSharedStateFromDisk();
   const recurring: RecurringOrder = {
     id: id("rec"),
     userId: input.userId,
@@ -711,37 +837,37 @@ export function createRecurringOrder(input: {
     lines: input.lines,
   };
   state.recurringOrders.push(recurring);
-  persistSharedState();
+  await persistSharedState();
   return recurring;
 }
 
-export function listRecurringOrdersByUser(userId: string): RecurringOrder[] {
-  syncSharedStateFromDisk();
+export async function listRecurringOrdersByUser(userId: string): Promise<RecurringOrder[] > {
+  await syncSharedStateFromDisk();
   return state.recurringOrders.filter((item) => item.userId === userId);
 }
 
-export function listAllRecurringOrders(): RecurringOrder[] {
-  syncSharedStateFromDisk();
+export async function listAllRecurringOrders(): Promise<RecurringOrder[] > {
+  await syncSharedStateFromDisk();
   return state.recurringOrders;
 }
 
-export function setRecurringOrderStatus(recurringId: string, active: boolean): RecurringOrder {
-  syncSharedStateFromDisk();
+export async function setRecurringOrderStatus(recurringId: string, active: boolean): Promise<RecurringOrder > {
+  await syncSharedStateFromDisk();
   const recurring = state.recurringOrders.find((item) => item.id === recurringId);
   if (!recurring) {
     throw new Error("Commande recurrente introuvable.");
   }
   recurring.active = active;
-  persistSharedState();
+  await persistSharedState();
   return recurring;
 }
 
-export function createTicket(input: {
+export async function createTicket(input: {
   userId: string;
   subject: string;
   message: string;
-}): SupportTicket {
-  syncSharedStateFromDisk();
+}): Promise<SupportTicket> {
+  await syncSharedStateFromDisk();
   const ticket: SupportTicket = {
     id: id("sup"),
     userId: input.userId,
@@ -751,45 +877,45 @@ export function createTicket(input: {
     createdAt: nowIso(),
   };
   state.supportTickets.push(ticket);
-  persistSharedState();
+  await persistSharedState();
   return ticket;
 }
 
-export function listTicketsByUser(userId: string): SupportTicket[] {
-  syncSharedStateFromDisk();
+export async function listTicketsByUser(userId: string): Promise<SupportTicket[] > {
+  await syncSharedStateFromDisk();
   return state.supportTickets.filter((item) => item.userId === userId);
 }
 
-export function listAllTickets(): SupportTicket[] {
-  syncSharedStateFromDisk();
+export async function listAllTickets(): Promise<SupportTicket[] > {
+  await syncSharedStateFromDisk();
   return state.supportTickets;
 }
 
-export function updateOrderStatus(orderId: string, status: OrderStatus): Order {
-  syncSharedStateFromDisk();
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order > {
+  await syncSharedStateFromDisk();
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) {
     throw new Error("Commande introuvable.");
   }
   order.status = status;
-  persistSharedState();
+  await persistSharedState();
   return order;
 }
 
-export function confirmReception(orderId: string): Order {
-  syncSharedStateFromDisk();
+export async function confirmReception(orderId: string): Promise<Order > {
+  await syncSharedStateFromDisk();
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) {
     throw new Error("Commande introuvable.");
   }
   order.receptionConfirmed = true;
   order.status = "CONFIRMEE";
-  persistSharedState();
+  await persistSharedState();
   return order;
 }
 
-export function adminDashboard() {
-  syncSharedStateFromDisk();
+export async function adminDashboard() {
+  await syncSharedStateFromDisk();
   const totalRevenue = roundToCents(state.orders.reduce((sum, order) => sum + order.totalTtc, 0));
   const totalMargin = roundToCents(
     state.orders.reduce(
@@ -823,33 +949,33 @@ export function adminDashboard() {
   };
 }
 
-export function listStockMovements(): StockMovement[] {
-  syncSharedStateFromDisk();
+export async function listStockMovements(): Promise<StockMovement[] > {
+  await syncSharedStateFromDisk();
   return state.stockMovements;
 }
 
-export function setMonthlyFixedCosts(value: number): number {
-  syncSharedStateFromDisk();
+export async function setMonthlyFixedCosts(value: number): Promise<number > {
+  await syncSharedStateFromDisk();
   if (value < 0) {
     throw new Error("Les charges fixes ne peuvent pas etre negatives.");
   }
   state.monthlyFixedCosts = roundToCents(value);
-  persistSharedState();
+  await persistSharedState();
   return state.monthlyFixedCosts;
 }
 
-export function getCurrentClientUser(): User {
-  syncSharedStateFromDisk();
+export async function getCurrentClientUser(): Promise<User > {
+  await syncSharedStateFromDisk();
   return state.users.find((user) => user.role === "CLIENT" && !user.deletedAt) ?? state.users[0];
 }
 
-export function getUserById(userId: string): User | undefined {
-  syncSharedStateFromDisk();
+export async function getUserById(userId: string): Promise<User | undefined > {
+  await syncSharedStateFromDisk();
   return state.users.find((user) => user.id === userId);
 }
 
-export function getUserByEmail(email: string): User | undefined {
-  syncSharedStateFromDisk();
+export async function getUserByEmail(email: string): Promise<User | undefined > {
+  await syncSharedStateFromDisk();
   return state.users.find((user) => {
     if (user.email.toLowerCase() !== email.trim().toLowerCase()) {
       return false;
@@ -861,8 +987,8 @@ export function getUserByEmail(email: string): User | undefined {
   });
 }
 
-export function listClientUsers() {
-  syncSharedStateFromDisk();
+export async function listClientUsers() {
+  await syncSharedStateFromDisk();
   return state.users
     .filter((user) => user.role === "CLIENT" && !user.deletedAt)
     .map((user) => ({
@@ -875,8 +1001,8 @@ export function listClientUsers() {
     }));
 }
 
-export function listDeletedClientUsers() {
-  syncSharedStateFromDisk();
+export async function listDeletedClientUsers() {
+  await syncSharedStateFromDisk();
   return state.users
     .filter((user) => user.role === "CLIENT" && Boolean(user.deletedAt))
     .map((user) => ({
@@ -890,14 +1016,14 @@ export function listDeletedClientUsers() {
     }));
 }
 
-export function createClientUser(input: {
+export async function createClientUser(input: {
   companyName: string;
   email: string;
   phone: string;
   address: string;
   password: string;
 }) {
-  syncSharedStateFromDisk();
+  await syncSharedStateFromDisk();
   const companyName = input.companyName.trim();
   const email = input.email.trim().toLowerCase();
   const phone = input.phone.trim();
@@ -919,8 +1045,38 @@ export function createClientUser(input: {
   if (!address) {
     throw new Error("L'adresse de livraison est obligatoire.");
   }
-  if (state.users.some((user) => user.email.toLowerCase() === email)) {
-    throw new Error("Un compte existe deja avec cet email.");
+  const existingByEmail = state.users.find((user) => user.email.toLowerCase() === email);
+  if (existingByEmail) {
+    if (existingByEmail.role !== "CLIENT") {
+      throw new Error("Un compte existe deja avec cet email.");
+    }
+    if (!existingByEmail.deletedAt) {
+      throw new Error("Un compte existe deja avec cet email.");
+    }
+
+    const previous = {
+      companyName: existingByEmail.companyName,
+      phone: existingByEmail.phone,
+      address: existingByEmail.address,
+      password: existingByEmail.password,
+      deletedAt: existingByEmail.deletedAt,
+    };
+    existingByEmail.companyName = companyName;
+    existingByEmail.phone = phone;
+    existingByEmail.address = address;
+    existingByEmail.password = password;
+    delete existingByEmail.deletedAt;
+    try {
+      await persistSharedState();
+    } catch (error) {
+      existingByEmail.companyName = previous.companyName;
+      existingByEmail.phone = previous.phone;
+      existingByEmail.address = previous.address;
+      existingByEmail.password = previous.password;
+      existingByEmail.deletedAt = previous.deletedAt;
+      throw error;
+    }
+    return existingByEmail;
   }
 
   const client: User = {
@@ -933,15 +1089,20 @@ export function createClientUser(input: {
     role: "CLIENT",
   };
   state.users.push(client);
-  persistSharedState();
+  try {
+    await persistSharedState();
+  } catch (error) {
+    state.users = state.users.filter((item) => item.id !== client.id);
+    throw error;
+  }
   return client;
 }
 
-export function ensureClientUserByEmail(
+export async function ensureClientUserByEmail(
   email: string,
   defaults?: Partial<Pick<User, "companyName" | "phone" | "address" | "password">>,
-): User {
-  syncSharedStateFromDisk();
+): Promise<User > {
+  await syncSharedStateFromDisk();
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !normalizedEmail.includes("@")) {
     throw new Error("Email client invalide.");
@@ -952,8 +1113,14 @@ export function ensureClientUserByEmail(
   );
   if (existing) {
     if (existing.deletedAt) {
+      const previousDeletedAt = existing.deletedAt;
       delete existing.deletedAt;
-      persistSharedState();
+      try {
+        await persistSharedState();
+      } catch (error) {
+        existing.deletedAt = previousDeletedAt;
+        throw error;
+      }
     }
     return existing;
   }
@@ -970,12 +1137,17 @@ export function ensureClientUserByEmail(
     role: "CLIENT",
   };
   state.users.push(user);
-  persistSharedState();
+  try {
+    await persistSharedState();
+  } catch (error) {
+    state.users = state.users.filter((item) => item.id !== user.id);
+    throw error;
+  }
   return user;
 }
 
-export function verifyClientCredentials(email: string, password: string): User | null {
-  syncSharedStateFromDisk();
+export async function verifyClientCredentials(email: string, password: string): Promise<User | null > {
+  await syncSharedStateFromDisk();
   const normalizedEmail = email.trim().toLowerCase();
   const user = state.users.find(
     (item) =>
@@ -989,22 +1161,22 @@ export function verifyClientCredentials(email: string, password: string): User |
   return user;
 }
 
-export function deleteClientUser(userId: string): User {
-  syncSharedStateFromDisk();
+export async function deleteClientUser(userId: string): Promise<User > {
+  await syncSharedStateFromDisk();
   const user = state.users.find((item) => item.id === userId);
   if (!user || user.role !== "CLIENT") {
     throw new Error("Client introuvable.");
   }
   if (!user.deletedAt) {
     user.deletedAt = nowIso();
-    persistSharedState();
+    await persistSharedState();
   }
   return user;
 }
 
-export function clientOverview(userId: string) {
-  syncSharedStateFromDisk();
-  const orders = listOrdersByUser(userId);
+export async function clientOverview(userId: string) {
+  await syncSharedStateFromDisk();
+  const orders = await listOrdersByUser(userId);
   const completedStatuses: OrderStatus[] = ["LIVREE", "CONFIRMEE", "REMBOURSEE"];
 
   const ongoingOrders = orders.filter(
@@ -1050,8 +1222,8 @@ export function clientOverview(userId: string) {
   };
 }
 
-export function createBackup(reason: string) {
-  syncSharedStateFromDisk();
+export async function createBackup(reason: string) {
+  await syncSharedStateFromDisk();
   const snapshot = JSON.stringify({
     createdAt: nowIso(),
     users: state.users,
@@ -1070,11 +1242,13 @@ export function createBackup(reason: string) {
     bytes,
   };
   state.backups.unshift(backup);
-  persistSharedState();
+  await persistSharedState();
   return { backup, snapshot };
 }
 
-export function listBackups() {
-  syncSharedStateFromDisk();
+export async function listBackups() {
+  await syncSharedStateFromDisk();
   return state.backups;
 }
+
+

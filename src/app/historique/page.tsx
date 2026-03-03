@@ -34,9 +34,9 @@ export default async function HistoriquePage() {
     );
   }
 
-  const user = ensureClientUserByEmail(session.email);
-  const orders = listOrdersByUser(user.id);
-  const recurring = listRecurringOrdersByUser(user.id);
+  const user = await ensureClientUserByEmail(session.email);
+  const orders = await listOrdersByUser(user.id);
+  const recurring = await listRecurringOrdersByUser(user.id);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">

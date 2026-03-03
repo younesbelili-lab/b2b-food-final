@@ -73,8 +73,8 @@ type ClientProfile = {
 export function AdminDashboard() {
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
-  const [email, setEmail] = useState("admin@sofoodservice.local");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -87,6 +87,7 @@ export function AdminDashboard() {
   const [selectedClientProfile, setSelectedClientProfile] = useState<ClientProfile | null>(null);
   const [loadingClientProfile, setLoadingClientProfile] = useState(false);
   const [clientProfileError, setClientProfileError] = useState("");
+  const [storageMessage, setStorageMessage] = useState("");
 
   const [productName, setProductName] = useState("");
   const [productOrigin, setProductOrigin] = useState("");
@@ -99,7 +100,7 @@ export function AdminDashboard() {
   const [productFeedback, setProductFeedback] = useState("");
 
   async function checkSession() {
-    const response = await fetch("/api/auth/session");
+    const response = await fetch("/api/auth/session", { cache: "no-store" });
     const data = await response.json();
     const ok = Boolean(data.authenticated) && data.role === "ADMIN";
     setAuthenticated(ok);
@@ -109,11 +110,11 @@ export function AdminDashboard() {
   async function loadAdminData() {
     setError("");
     const [dashboardRes, movementRes, ticketRes, backupRes, clientsRes] = await Promise.all([
-      fetch("/api/admin/dashboard"),
-      fetch("/api/admin/stock-movements"),
-      fetch("/api/admin/support-tickets"),
-      fetch("/api/admin/backups"),
-      fetch("/api/admin/clients"),
+      fetch("/api/admin/dashboard", { cache: "no-store" }),
+      fetch("/api/admin/stock-movements", { cache: "no-store" }),
+      fetch("/api/admin/support-tickets", { cache: "no-store" }),
+      fetch("/api/admin/backups", { cache: "no-store" }),
+      fetch("/api/admin/clients", { cache: "no-store" }),
     ]);
 
     if (!dashboardRes.ok || !movementRes.ok || !ticketRes.ok || !backupRes.ok || !clientsRes.ok) {
@@ -138,7 +139,7 @@ export function AdminDashboard() {
     setClientProfileError("");
     setLoadingClientProfile(true);
     try {
-      const response = await fetch(`/api/admin/clients/${clientId}`);
+      const response = await fetch(`/api/admin/clients/${clientId}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setClientProfileError(data.error ?? "Impossible de charger le profil client.");
@@ -212,6 +213,7 @@ export function AdminDashboard() {
     setProductOrigin("");
     setProductPriceHt("");
     setProductImage("");
+    await loadAdminData();
   }
 
   useEffect(() => {
@@ -219,6 +221,15 @@ export function AdminDashboard() {
       const ok = await checkSession();
       if (ok) {
         await loadAdminData();
+        try {
+          const response = await fetch("/api/system/storage", { cache: "no-store" });
+          const data = await response.json().catch(() => ({}));
+          if (response.ok && data?.item?.message) {
+            setStorageMessage(String(data.item.message));
+          }
+        } catch {
+          // ignore diagnostics errors
+        }
       }
     })();
   }, []);
@@ -235,6 +246,19 @@ export function AdminDashboard() {
       void loadClientProfile(firstId);
     }
   }, [clients, selectedClientId]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      return;
+    }
+    const interval = setInterval(() => {
+      void loadAdminData();
+      if (selectedClientId) {
+        void loadClientProfile(selectedClientId);
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [authenticated, selectedClientId]);
 
   if (!authenticated) {
     return (
@@ -308,6 +332,7 @@ export function AdminDashboard() {
           </div>
         </div>
         {error && <p className="mt-3 text-sm text-rose-700">{error}</p>}
+        {storageMessage && <p className="mt-2 text-sm text-amber-700">{storageMessage}</p>}
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">

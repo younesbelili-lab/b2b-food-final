@@ -7,31 +7,31 @@ import {
   setRecurringOrderStatus,
 } from "@/lib/store";
 
-function getClientSessionUser(request: NextRequest) {
+async function getClientSessionUser(request: NextRequest) {
   const token = request.cookies.get(getSessionCookieName())?.value;
   const session = verifySessionToken(token);
   if (!session || session.role !== "CLIENT") {
     return null;
   }
-  return ensureClientUserByEmail(session.email);
+  return await ensureClientUserByEmail(session.email);
 }
 
-export function GET(request: NextRequest) {
-  const user = getClientSessionUser(request);
+export async function GET(request: NextRequest) {
+  const user = await getClientSessionUser(request);
   if (!user) {
     return NextResponse.json({ error: "Authentification client requise." }, { status: 401 });
   }
-  return NextResponse.json({ items: listRecurringOrdersByUser(user.id) });
+  return NextResponse.json({ items: await listRecurringOrdersByUser(user.id) });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = getClientSessionUser(request);
+    const user = await getClientSessionUser(request);
     if (!user) {
       return NextResponse.json({ error: "Authentification client requise." }, { status: 401 });
     }
     const body = await request.json();
-    const recurring = createRecurringOrder({
+    const recurring = await createRecurringOrder({
       userId: user.id,
       frequency: body.frequency,
       nextRunAt: body.nextRunAt,
@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = getClientSessionUser(request);
+    const user = await getClientSessionUser(request);
     if (!user) {
       return NextResponse.json({ error: "Authentification client requise." }, { status: 401 });
     }
     const body = await request.json();
-    const item = setRecurringOrderStatus(body.id, body.active);
+    const item = await setRecurringOrderStatus(body.id, body.active);
     return NextResponse.json({ item });
   } catch (error) {
     return NextResponse.json(

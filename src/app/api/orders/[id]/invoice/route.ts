@@ -5,7 +5,7 @@ type Params = Promise<{ id: string }>;
 
 export async function GET(_: NextRequest, context: { params: Params }) {
   const params = await context.params;
-  const order = getOrderById(params.id);
+  const order = await getOrderById(params.id);
   if (!order) {
     return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
   }
