@@ -1,5 +1,6 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -341,6 +342,12 @@ if (!readRuntimeState()) {
 
 function id(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function clientIdFromEmail(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  const suffix = crypto.createHash("sha256").update(normalized).digest("hex").slice(0, 12);
+  return `u-client-${suffix}`;
 }
 
 function nowIso(): string {
@@ -917,7 +924,7 @@ export function createClientUser(input: {
   }
 
   const client: User = {
-    id: id("u-client"),
+    id: clientIdFromEmail(email),
     companyName,
     email,
     phone,
@@ -928,6 +935,43 @@ export function createClientUser(input: {
   state.users.push(client);
   persistSharedState();
   return client;
+}
+
+export function ensureClientUserByEmail(
+  email: string,
+  defaults?: Partial<Pick<User, "companyName" | "phone" | "address" | "password">>,
+): User {
+  syncSharedStateFromDisk();
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !normalizedEmail.includes("@")) {
+    throw new Error("Email client invalide.");
+  }
+
+  const existing = state.users.find(
+    (item) => item.role === "CLIENT" && item.email.toLowerCase() === normalizedEmail,
+  );
+  if (existing) {
+    if (existing.deletedAt) {
+      delete existing.deletedAt;
+      persistSharedState();
+    }
+    return existing;
+  }
+
+  const localPart = normalizedEmail.split("@")[0] || "client";
+  const generatedCompany = localPart.replace(/[._-]+/g, " ").trim() || "Nouveau client";
+  const user: User = {
+    id: clientIdFromEmail(normalizedEmail),
+    companyName: (defaults?.companyName ?? generatedCompany).trim(),
+    email: normalizedEmail,
+    phone: (defaults?.phone ?? "").trim(),
+    address: (defaults?.address ?? "").trim(),
+    password: defaults?.password ?? process.env.CLIENT_PASSWORD ?? "client123",
+    role: "CLIENT",
+  };
+  state.users.push(user);
+  persistSharedState();
+  return user;
 }
 
 export function verifyClientCredentials(email: string, password: string): User | null {

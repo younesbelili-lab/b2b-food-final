@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 import {
-  getCurrentClientUser,
+  ensureClientUserByEmail,
   listOrdersByUser,
   listRecurringOrdersByUser,
 } from "@/lib/store";
@@ -11,8 +13,28 @@ export const metadata: Metadata = {
   description: "Historique des commandes, factures et commandes recurrentes.",
 };
 
-export default function HistoriquePage() {
-  const user = getCurrentClientUser();
+export default async function HistoriquePage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(getSessionCookieName())?.value;
+  const session = verifySessionToken(token);
+
+  if (!session || session.role !== "CLIENT") {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6">
+          <h1 className="text-2xl font-bold">Historique client</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Connecte-toi avec un compte client pour voir ton historique.
+          </p>
+          <Link href="/login/client" className="mt-4 inline-block underline">
+            Aller a la connexion client
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const user = ensureClientUserByEmail(session.email);
   const orders = listOrdersByUser(user.id);
   const recurring = listRecurringOrdersByUser(user.id);
 

@@ -4,7 +4,7 @@ import {
   verifySessionToken,
 } from "@/lib/auth";
 import {
-  getUserByEmail,
+  ensureClientUserByEmail,
   getUserById,
   listAllOrders,
   listAllRecurringOrders,
@@ -42,10 +42,7 @@ export function GET(request: NextRequest) {
     return NextResponse.json({ items: orders, recurringItems });
   }
 
-  const user = getUserByEmail(session.email);
-  if (!user || user.role !== "CLIENT") {
-    return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
-  }
+  const user = ensureClientUserByEmail(session.email);
   const orders = listOrdersByUser(user.id)
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

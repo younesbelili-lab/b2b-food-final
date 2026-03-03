@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 import {
   createCheckout,
-  getUserByEmail,
+  ensureClientUserByEmail,
   type PaymentMethod,
 } from "@/lib/store";
 
@@ -15,10 +15,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const user = getUserByEmail(session.email);
-    if (!user) {
-      return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
-    }
+    const user = ensureClientUserByEmail(session.email, {
+      address: String(body.deliveryAddress ?? "").trim(),
+    });
     const paymentMethod = body.paymentMethod as PaymentMethod;
 
     if (!paymentMethod) {

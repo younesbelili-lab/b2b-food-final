@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
-import { clientOverview, getUserByEmail } from "@/lib/store";
+import { clientOverview, ensureClientUserByEmail } from "@/lib/store";
 
 export function GET(request: NextRequest) {
   const token = request.cookies.get(getSessionCookieName())?.value;
@@ -9,9 +9,6 @@ export function GET(request: NextRequest) {
   if (!session || session.role !== "CLIENT") {
     return NextResponse.json({ error: "Authentification client requise." }, { status: 401 });
   }
-  const user = getUserByEmail(session.email);
-  if (!user) {
-    return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
-  }
+  const user = ensureClientUserByEmail(session.email);
   return NextResponse.json({ item: clientOverview(user.id) });
 }

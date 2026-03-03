@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 import {
   createRecurringOrder,
-  getUserByEmail,
+  ensureClientUserByEmail,
   listRecurringOrdersByUser,
   setRecurringOrderStatus,
 } from "@/lib/store";
@@ -13,7 +13,7 @@ function getClientSessionUser(request: NextRequest) {
   if (!session || session.role !== "CLIENT") {
     return null;
   }
-  return getUserByEmail(session.email) ?? null;
+  return ensureClientUserByEmail(session.email);
 }
 
 export function GET(request: NextRequest) {
