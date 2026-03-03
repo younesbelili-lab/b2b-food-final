@@ -14,13 +14,28 @@ export default async function AdminLoginPage(props: { searchParams: SearchParams
               Identifiants invalides.
             </p>
           )}
-          <form action="/api/auth/login" method="post" className="mt-4 grid gap-3">
+          <form action="/api/auth/login" method="post" autoComplete="off" className="mt-4 grid gap-3">
             <input type="hidden" name="role" value="ADMIN" />
+            <input
+              type="text"
+              name="fake-username"
+              autoComplete="username"
+              tabIndex={-1}
+              className="hidden"
+            />
+            <input
+              type="password"
+              name="fake-password"
+              autoComplete="current-password"
+              tabIndex={-1}
+              className="hidden"
+            />
             <label className="text-sm font-medium text-slate-700">
               Email
               <input
                 name="email"
                 type="email"
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -29,6 +44,7 @@ export default async function AdminLoginPage(props: { searchParams: SearchParams
               <input
                 name="password"
                 type="password"
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>

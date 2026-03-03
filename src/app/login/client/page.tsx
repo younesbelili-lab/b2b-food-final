@@ -21,13 +21,28 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
               Compte cree. Connecte-toi avec ton email et ton mot de passe.
             </p>
           )}
-          <form action="/api/auth/login" method="post" className="mt-4 grid gap-3">
+          <form action="/api/auth/login" method="post" autoComplete="off" className="mt-4 grid gap-3">
             <input type="hidden" name="role" value="CLIENT" />
+            <input
+              type="text"
+              name="fake-username"
+              autoComplete="username"
+              tabIndex={-1}
+              className="hidden"
+            />
+            <input
+              type="password"
+              name="fake-password"
+              autoComplete="current-password"
+              tabIndex={-1}
+              className="hidden"
+            />
             <label className="text-sm font-medium text-slate-700">
               Email
               <input
                 name="email"
                 type="email"
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -36,6 +51,7 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
               <input
                 name="password"
                 type="password"
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -55,13 +71,33 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
               {searchParams.message ?? "Impossible de creer le compte."}
             </p>
           )}
-          <form action="/api/auth/register-client" method="post" className="mt-4 grid gap-3">
+          <form
+            action="/api/auth/register-client"
+            method="post"
+            autoComplete="off"
+            className="mt-4 grid gap-3"
+          >
+            <input
+              type="text"
+              name="fake-register-email"
+              autoComplete="username"
+              tabIndex={-1}
+              className="hidden"
+            />
+            <input
+              type="password"
+              name="fake-register-password"
+              autoComplete="new-password"
+              tabIndex={-1}
+              className="hidden"
+            />
             <label className="text-sm font-medium text-slate-700">
               Nom de l&apos;entreprise
               <input
                 name="companyName"
                 type="text"
                 required
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -71,6 +107,7 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
                 name="email"
                 type="email"
                 required
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -80,6 +117,7 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
                 name="phone"
                 type="tel"
                 required
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -89,6 +127,7 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
                 name="address"
                 required
                 rows={3}
+                autoComplete="off"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -99,6 +138,7 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
                 type="password"
                 minLength={6}
                 required
+                autoComplete="new-password"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
