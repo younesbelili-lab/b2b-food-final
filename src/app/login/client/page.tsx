@@ -5,7 +5,6 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
   const hasError = searchParams.error === "login";
   const registerError = searchParams.error === "register";
   const isRegistered = searchParams.registered === "1";
-  const defaultEmail = searchParams.email ?? "client@sofoodservice.local";
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
@@ -29,7 +28,6 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
               <input
                 name="email"
                 type="email"
-                defaultValue={defaultEmail}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -38,7 +36,6 @@ export default async function ClientLoginPage(props: { searchParams: SearchParam
               <input
                 name="password"
                 type="password"
-                defaultValue="client123"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>

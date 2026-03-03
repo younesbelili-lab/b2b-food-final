@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  createClientSignupToken,
+  getClientSignupCookieName,
+  shouldUseSecureCookie,
+} from "@/lib/auth";
 import { createClientUser } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
@@ -29,14 +34,40 @@ export async function POST(request: NextRequest) {
 
   try {
     const user = createClientUser({ companyName, email, phone, address, password });
+    const signupToken = createClientSignupToken({
+      email: user.email,
+      password,
+      companyName,
+      phone,
+      address,
+    });
     if (isFormSubmit) {
       const redirectUrl = new URL(
-        `/login/client?registered=1&email=${encodeURIComponent(user.email)}`,
+        "/login/client?registered=1",
         request.url,
       );
-      return NextResponse.redirect(redirectUrl, 303);
+      const response = NextResponse.redirect(redirectUrl, 303);
+      response.cookies.set(getClientSignupCookieName(), signupToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: shouldUseSecureCookie(request.nextUrl.hostname),
+        path: "/",
+        maxAge: 60 * 60,
+      });
+      return response;
     }
-    return NextResponse.json({ item: { email: user.email, companyName: user.companyName } }, { status: 201 });
+    const response = NextResponse.json(
+      { item: { email: user.email, companyName: user.companyName } },
+      { status: 201 },
+    );
+    response.cookies.set(getClientSignupCookieName(), signupToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: shouldUseSecureCookie(request.nextUrl.hostname),
+      path: "/",
+      maxAge: 60 * 60,
+    });
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur creation compte client.";
     if (isFormSubmit) {

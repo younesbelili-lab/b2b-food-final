@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  getClientSignupCookieName,
   createSessionToken,
   getCredentialsByRole,
   getSessionCookieName,
   shouldUseSecureCookie,
+  verifyClientSignupToken,
 } from "@/lib/auth";
-import { verifyClientCredentials } from "@/lib/store";
+import { ensureClientUserByEmail, verifyClientCredentials } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -26,7 +28,24 @@ export async function POST(request: NextRequest) {
   }
 
   const credentials = getCredentialsByRole(role);
-  const clientAccount = role === "CLIENT" ? verifyClientCredentials(email, password) : null;
+  let clientAccount = role === "CLIENT" ? verifyClientCredentials(email, password) : null;
+  if (!clientAccount && role === "CLIENT") {
+    const signupToken = request.cookies.get(getClientSignupCookieName())?.value;
+    const pendingClient = verifyClientSignupToken(signupToken);
+    if (
+      pendingClient &&
+      pendingClient.email === email &&
+      pendingClient.password === password
+    ) {
+      ensureClientUserByEmail(pendingClient.email, {
+        companyName: pendingClient.companyName,
+        phone: pendingClient.phone,
+        address: pendingClient.address,
+        password: pendingClient.password,
+      });
+      clientAccount = verifyClientCredentials(email, password);
+    }
+  }
   const loginEmail = clientAccount?.email ?? credentials.email;
   const isFormSubmit = !contentType.includes("application/json");
 
@@ -59,5 +78,8 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: 60 * 60 * 12,
   });
+  if (role === "CLIENT") {
+    response.cookies.delete(getClientSignupCookieName());
+  }
   return response;
 }

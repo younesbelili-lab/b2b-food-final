@@ -21,7 +21,6 @@ export default async function AdminLoginPage(props: { searchParams: SearchParams
               <input
                 name="email"
                 type="email"
-                defaultValue="admin@sofoodservice.local"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -30,7 +29,6 @@ export default async function AdminLoginPage(props: { searchParams: SearchParams
               <input
                 name="password"
                 type="password"
-                defaultValue="admin123"
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>

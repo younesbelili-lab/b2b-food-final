@@ -1,11 +1,21 @@
 import crypto from "crypto";
 
 const SESSION_COOKIE = "sfs_session";
+const CLIENT_SIGNUP_COOKIE = "sfs_client_signup";
 
 type SessionPayload = {
   role: "ADMIN" | "CLIENT";
   exp: number;
   email: string;
+};
+
+type ClientSignupPayload = {
+  email: string;
+  password: string;
+  companyName: string;
+  phone: string;
+  address: string;
+  exp: number;
 };
 
 function getSecret() {
@@ -78,6 +88,55 @@ export function verifySessionToken(token?: string): SessionPayload | null {
 
 export function getSessionCookieName() {
   return SESSION_COOKIE;
+}
+
+export function getClientSignupCookieName() {
+  return CLIENT_SIGNUP_COOKIE;
+}
+
+export function createClientSignupToken(payload: {
+  email: string;
+  password: string;
+  companyName: string;
+  phone: string;
+  address: string;
+}) {
+  const data: ClientSignupPayload = {
+    email: payload.email.trim().toLowerCase(),
+    password: payload.password,
+    companyName: payload.companyName.trim(),
+    phone: payload.phone.trim(),
+    address: payload.address.trim(),
+    exp: Date.now() + 1000 * 60 * 60,
+  };
+  const encoded = base64UrlEncode(JSON.stringify(data));
+  const signature = sign(encoded);
+  return `${encoded}.${signature}`;
+}
+
+export function verifyClientSignupToken(token?: string): ClientSignupPayload | null {
+  if (!token) {
+    return null;
+  }
+  const [payloadEncoded, signature] = token.split(".");
+  if (!payloadEncoded || !signature) {
+    return null;
+  }
+  if (sign(payloadEncoded) !== signature) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(base64UrlDecode(payloadEncoded)) as ClientSignupPayload;
+    if (payload.exp < Date.now()) {
+      return null;
+    }
+    if (!payload.email || !payload.email.includes("@")) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 export function shouldUseSecureCookie(hostname: string) {
