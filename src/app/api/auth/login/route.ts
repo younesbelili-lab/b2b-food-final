@@ -81,5 +81,6 @@ export async function POST(request: NextRequest) {
   if (role === "CLIENT") {
     response.cookies.delete(getClientSignupCookieName());
   }
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   return response;
 }

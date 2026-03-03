@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
