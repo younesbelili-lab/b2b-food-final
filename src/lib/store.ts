@@ -127,9 +127,13 @@ type AppState = {
   backups: Array<{ id: string; createdAt: string; reason: string; bytes: number }>;
 };
 
-const PRODUCTS_FILE_PATH = path.join(process.cwd(), "data", "products-db.json");
-const USERS_FILE_PATH = path.join(process.cwd(), "data", "users-db.json");
-const RUNTIME_STATE_FILE_PATH = path.join(process.cwd(), "data", "runtime-db.json");
+const DATA_ROOT_PATH = process.env.VERCEL
+  ? path.join("/tmp", "b2b-food-data")
+  : path.join(process.cwd(), "data");
+
+const PRODUCTS_FILE_PATH = path.join(DATA_ROOT_PATH, "products-db.json");
+const USERS_FILE_PATH = path.join(DATA_ROOT_PATH, "users-db.json");
+const RUNTIME_STATE_FILE_PATH = path.join(DATA_ROOT_PATH, "runtime-db.json");
 
 type RuntimeState = {
   payments: Payment[];
@@ -159,11 +163,15 @@ function readPersistedProducts(): Product[] | null {
 }
 
 function persistProducts(products: Product[]) {
-  const dirPath = path.dirname(PRODUCTS_FILE_PATH);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    const dirPath = path.dirname(PRODUCTS_FILE_PATH);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(PRODUCTS_FILE_PATH, JSON.stringify(products, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Persist products skipped:", error);
   }
-  fs.writeFileSync(PRODUCTS_FILE_PATH, JSON.stringify(products, null, 2), "utf8");
 }
 
 function bootstrapProducts(): Product[] {
@@ -202,11 +210,15 @@ function readPersistedUsers(): User[] | null {
 }
 
 function persistUsers(users: User[]) {
-  const dirPath = path.dirname(USERS_FILE_PATH);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    const dirPath = path.dirname(USERS_FILE_PATH);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Persist users skipped:", error);
   }
-  fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), "utf8");
 }
 
 function bootstrapUsers(): User[] {
@@ -252,11 +264,15 @@ function readRuntimeState(): RuntimeState | null {
 }
 
 function persistRuntimeState(runtime: RuntimeState) {
-  const dirPath = path.dirname(RUNTIME_STATE_FILE_PATH);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    const dirPath = path.dirname(RUNTIME_STATE_FILE_PATH);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    fs.writeFileSync(RUNTIME_STATE_FILE_PATH, JSON.stringify(runtime, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Persist runtime state skipped:", error);
   }
-  fs.writeFileSync(RUNTIME_STATE_FILE_PATH, JSON.stringify(runtime, null, 2), "utf8");
 }
 
 const state: AppState = {
