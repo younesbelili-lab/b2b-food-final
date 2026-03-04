@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AdminDashboard } from "@/components/admin-dashboard";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +14,5 @@ export default async function AdminPage() {
     redirect("/login/admin");
   }
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <AdminDashboard />
-    </main>
-  );
+  redirect("/catalogue");
 }

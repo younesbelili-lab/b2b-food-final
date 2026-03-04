@@ -155,9 +155,12 @@ type PersistedDbState = {
   runtime: RuntimeState;
 };
 
+type QueryPrimitive = string | number | boolean | undefined | null;
+
 let dbSchemaReady: Promise<void> | null = null;
 let lastDatabaseReadFailed = false;
 let forceDirectClient = false;
+let disableDatabaseForRuntime = false;
 
 function getDatabaseConnectionString() {
   return (
@@ -171,7 +174,7 @@ function getDatabaseConnectionString() {
 }
 
 function isDatabaseEnabled() {
-  return Boolean(getDatabaseConnectionString());
+  return !disableDatabaseForRuntime && Boolean(getDatabaseConnectionString());
 }
 
 function isInvalidConnectionStringError(error: unknown) {
@@ -189,7 +192,7 @@ function isInvalidConnectionStringError(error: unknown) {
 
 async function runDbQuery<T>(
   strings: TemplateStringsArray,
-  ...values: any[]
+  ...values: QueryPrimitive[]
 ): Promise<{ rows: T[] }> {
   if (!forceDirectClient) {
     try {
@@ -213,6 +216,11 @@ async function runDbQuery<T>(
   await client.connect();
   try {
     return (await client.sql(strings, ...values)) as unknown as { rows: T[] };
+  } catch (error) {
+    if (isInvalidConnectionStringError(error)) {
+      disableDatabaseForRuntime = true;
+    }
+    throw error;
   } finally {
     await client.end();
   }
@@ -269,6 +277,12 @@ async function readDatabaseState(): Promise<PersistedDbState | null> {
     }
     return result.rows[0].data ?? null;
   } catch (error) {
+    if (isInvalidConnectionStringError(error)) {
+      disableDatabaseForRuntime = true;
+      lastDatabaseReadFailed = false;
+      console.warn("Database connection string is not compatible with @vercel/postgres. Falling back to file storage.");
+      return null;
+    }
     lastDatabaseReadFailed = true;
     console.warn("Read database state failed:", error);
     return null;
@@ -279,14 +293,21 @@ async function persistDatabaseState(snapshot: PersistedDbState) {
   if (!isDatabaseEnabled()) {
     return;
   }
-  await ensureDbSchema();
-  const json = JSON.stringify(snapshot);
-  await runDbQuery`
-    INSERT INTO app_state (key, data, updated_at)
-    VALUES (${DB_STATE_KEY}, ${json}::jsonb, NOW())
-    ON CONFLICT (key)
-    DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-  `;
+  try {
+    await ensureDbSchema();
+    const json = JSON.stringify(snapshot);
+    await runDbQuery`
+      INSERT INTO app_state (key, data, updated_at)
+      VALUES (${DB_STATE_KEY}, ${json}::jsonb, NOW())
+      ON CONFLICT (key)
+      DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+    `;
+  } catch (error) {
+    if (isInvalidConnectionStringError(error)) {
+      disableDatabaseForRuntime = true;
+    }
+    throw error;
+  }
 }
 
 function readPersistedProducts(): Product[] | null {

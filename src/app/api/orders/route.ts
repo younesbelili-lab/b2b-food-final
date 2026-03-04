@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   if (session.role === "ADMIN") {
     const ordersSource = (await listAllOrders())
       .slice()
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
     const orders = [];
     for (const order of ordersSource) {
       const user = await getUserById(order.userId);

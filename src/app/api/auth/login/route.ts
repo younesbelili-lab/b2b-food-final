@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = createSessionToken(role, loginEmail);
-  const redirectPath = role === "ADMIN" ? "/admin" : "/catalogue";
+  const redirectPath = "/catalogue";
   const response = isFormSubmit
     ? NextResponse.redirect(new URL(redirectPath, request.url), 303)
     : NextResponse.json({ ok: true, role, email: loginEmail });
