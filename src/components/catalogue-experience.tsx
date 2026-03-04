@@ -101,7 +101,6 @@ type AdminClientProfile = {
 type AdminDashboardStats = {
   totalRevenue: number;
   totalMargin: number;
-  breakEvenRevenue: number;
   ordersCount: number;
   bestClients: Array<{
     companyName: string;
@@ -259,6 +258,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [adminStats, setAdminStats] = useState<AdminDashboardStats | null>(null);
   const [adminStatsLoading, setAdminStatsLoading] = useState(false);
   const [adminStatsError, setAdminStatsError] = useState("");
+  const [clientRecommendedProductIds, setClientRecommendedProductIds] = useState<string[]>([]);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editDeliveryDate, setEditDeliveryDate] = useState("");
   const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
@@ -346,6 +346,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
 
   useEffect(() => {
     void (async () => {
+      let resolvedRole: "ADMIN" | "CLIENT" | "" = "";
       try {
         const response = await fetch("/api/auth/session", { cache: "no-store" });
         if (!response.ok) {
@@ -360,6 +361,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
           return;
         }
         const role = data?.role === "ADMIN" ? "ADMIN" : "CLIENT";
+        resolvedRole = role;
         setSessionRole(role);
         setActiveTab(role === "ADMIN" ? "admin-add" : "catalogue");
       } catch {
@@ -371,6 +373,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       await reloadOrders();
       await reloadAdminClients();
       await reloadAdminStats();
+      if (resolvedRole === "CLIENT") {
+        await reloadClientRecommendations();
+      }
     })();
   }, [router]);
 
@@ -418,6 +423,8 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
         if (selectedClientId) {
           void loadAdminClientProfile(selectedClientId);
         }
+      } else {
+        void reloadClientRecommendations();
       }
     }
     document.addEventListener("visibilitychange", onVisible);
@@ -459,6 +466,28 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       return true;
     });
   }, [productsState, category, selectedSubcategory, onlyPromo, productSearch]);
+
+  const orderedProducts = useMemo(() => {
+    if (sessionRole !== "CLIENT" || clientRecommendedProductIds.length === 0) {
+      return filteredProducts;
+    }
+    const rank = new Map<string, number>();
+    clientRecommendedProductIds.forEach((id, index) => rank.set(id, index));
+    return [...filteredProducts].sort((a, b) => {
+      const aRank = rank.get(a.id);
+      const bRank = rank.get(b.id);
+      if (aRank === undefined && bRank === undefined) {
+        return 0;
+      }
+      if (aRank === undefined) {
+        return 1;
+      }
+      if (bRank === undefined) {
+        return -1;
+      }
+      return aRank - bRank;
+    });
+  }, [filteredProducts, sessionRole, clientRecommendedProductIds]);
 
   const visibleSubcategories = useMemo<NonNullable<CatalogueProduct["subcategory"]>[]>(() => {
     if (category === "Viandes") {
@@ -911,6 +940,25 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
     }
   }
 
+  async function reloadClientRecommendations() {
+    try {
+      const response = await fetch("/api/client/overview", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setClientRecommendedProductIds([]);
+        return;
+      }
+      const ids: string[] = Array.isArray(data?.item?.recommendedItems)
+        ? data.item.recommendedItems
+            .map((item: { productId?: unknown }) => String(item.productId ?? ""))
+            .filter((id: string) => id.length > 0)
+        : [];
+      setClientRecommendedProductIds(ids);
+    } catch {
+      setClientRecommendedProductIds([]);
+    }
+  }
+
   async function reloadAdminStats() {
     if (sessionRole !== "ADMIN") {
       return;
@@ -1031,10 +1079,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                 <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <p className="text-xs text-slate-500">Commandes</p>
                   <p className="text-lg font-semibold">{adminStats.ordersCount}</p>
-                </article>
-                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">Seuil rentabilite</p>
-                  <p className="text-lg font-semibold">{adminStats.breakEvenRevenue.toFixed(2)} EUR</p>
                 </article>
               </div>
 
@@ -1659,13 +1703,21 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredProducts.map((product) => {
+        {orderedProducts.map((product) => {
+          const highlighted = sessionRole === "CLIENT" && clientRecommendedProductIds.includes(product.id);
           const currentPriceHt = promoPriceHt(product.priceHt, product.promoPercent);
           const currentPriceTtc = priceTtc(currentPriceHt, product.tvaRate);
           const oldPriceTtc = priceTtc(product.priceHt, product.tvaRate);
 
           return (
-            <article key={product.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <article
+              key={product.id}
+              className={
+                highlighted
+                  ? "overflow-hidden rounded-xl border border-amber-300 bg-white shadow-sm"
+                  : "overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+              }
+            >
               <div className={`h-44 w-full bg-gradient-to-br ${categoryAccent(product.category)}`}>
                 <Image
                   src={product.image || fallbackImageForCategory(product.category)}
@@ -1689,6 +1741,11 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                 <p className="mt-1 text-sm text-slate-500">Origine: {product.origin}</p>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  {highlighted && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+                      Tendance
+                    </span>
+                  )}
                   {product.isFeatured && (
                     <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
                       Produit phare
