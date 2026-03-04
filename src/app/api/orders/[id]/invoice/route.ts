@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderById } from "@/lib/store";
+import { createSimplePdf } from "@/lib/pdf";
 
 type Params = Promise<{ id: string }>;
 
@@ -15,26 +16,23 @@ export async function GET(_: NextRequest, context: { params: Params }) {
       (line) =>
         `- ${line.productName} x${line.quantity} | HT ${line.lineTotalHt.toFixed(2)} EUR | TTC ${line.lineTotalTtc.toFixed(2)} EUR`,
     )
-    .join("\n");
-
-  const content = [
+    .join(" | ");
+  const pdf = createSimplePdf([
     `FACTURE ${order.invoiceNumber}`,
     `Commande: ${order.id}`,
     `Date: ${order.createdAt}`,
     `Livraison: ${order.deliveryDate}`,
     `Adresse livraison: ${order.deliveryAddress ?? ""}`,
-    "",
-    lines,
-    "",
+    `Articles: ${lines}`,
     `Total HT: ${order.totalHt.toFixed(2)} EUR`,
     `TVA: ${order.totalTva.toFixed(2)} EUR`,
     `Total TTC: ${order.totalTtc.toFixed(2)} EUR`,
-  ].join("\n");
+  ]);
 
-  return new NextResponse(content, {
+  return new NextResponse(pdf, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${order.invoiceNumber}.txt"`,
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${order.invoiceNumber}.pdf"`,
     },
   });
 }

@@ -12,6 +12,7 @@ import {
   roundToCents,
   type Product,
 } from "@/lib/pricing";
+import { notifyOrderReceived, notifyOrderStatusChanged } from "@/lib/notifications";
 
 export type UserRole = "ADMIN" | "CLIENT";
 
@@ -977,6 +978,14 @@ export async function createCheckout(input: CheckoutInput): Promise<Order > {
   state.payments.push(payment);
   state.orders.push(order);
   await persistSharedState();
+  void notifyOrderReceived({
+    orderId: order.id,
+    clientEmail: order.clientEmail,
+    clientCompany: order.clientCompany,
+    deliveryDate: order.deliveryDate,
+    totalTtc: order.totalTtc,
+    recurrence: order.recurrence,
+  });
   return order;
 }
 
@@ -1381,6 +1390,14 @@ async function materializeRecurringOrders() {
           recurrence: recurring.frequency,
           recurringOrderId: recurring.id,
         });
+        void notifyOrderReceived({
+          orderId,
+          clientEmail: user.email,
+          clientCompany: user.companyName,
+          deliveryDate,
+          totalTtc,
+          recurrence: recurring.frequency,
+        });
         hasChanges = true;
       } catch {
         // If one scheduled run fails, still advance to avoid infinite loops.
@@ -1433,6 +1450,15 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
   }
   order.status = status;
   await persistSharedState();
+  void notifyOrderStatusChanged({
+    orderId: order.id,
+    status: order.status,
+    clientEmail: order.clientEmail,
+    clientCompany: order.clientCompany,
+    deliveryDate: order.deliveryDate,
+    totalTtc: order.totalTtc,
+    recurrence: order.recurrence,
+  });
   return order;
 }
 
@@ -1450,9 +1476,12 @@ export async function confirmReception(orderId: string): Promise<Order > {
 
 export async function adminDashboard() {
   await syncSharedStateFromDisk();
-  const totalRevenue = roundToCents(state.orders.reduce((sum, order) => sum + order.totalTtc, 0));
+  const billableOrders = state.orders.filter((order) => order.status !== "ANNULEE");
+  const totalRevenue = roundToCents(
+    billableOrders.reduce((sum, order) => sum + order.totalTtc, 0),
+  );
   const totalMargin = roundToCents(
-    state.orders.reduce(
+    billableOrders.reduce(
       (sum, order) => sum + order.lines.reduce((lineSum, line) => lineSum + line.lineMarginEuro, 0),
       0,
     ),
@@ -1471,15 +1500,94 @@ export async function adminDashboard() {
   });
 
   const breakEvenRevenue = state.monthlyFixedCosts;
+
+  const revenueByCategoryMap = new Map<string, number>();
+  const marginByCategoryMap = new Map<string, number>();
+  const productQtyMap = new Map<string, { name: string; quantity: number }>();
+  const clientRevenueMap = new Map<
+    string,
+    { companyName: string; email: string; revenue: number; ordersCount: number }
+  >();
+
+  for (const order of billableOrders) {
+    const user = state.users.find((item) => item.id === order.userId);
+    const clientKey = order.userId;
+    const currentClient = clientRevenueMap.get(clientKey) ?? {
+      companyName: user?.companyName ?? order.clientCompany ?? "Client inconnu",
+      email: user?.email ?? order.clientEmail ?? "",
+      revenue: 0,
+      ordersCount: 0,
+    };
+    currentClient.revenue += order.totalTtc;
+    currentClient.ordersCount += 1;
+    clientRevenueMap.set(clientKey, currentClient);
+
+    for (const line of order.lines) {
+      const product = state.products.find((item) => item.id === line.productId);
+      const category = product?.category ?? "Autres";
+      revenueByCategoryMap.set(
+        category,
+        roundToCents((revenueByCategoryMap.get(category) ?? 0) + line.lineTotalTtc),
+      );
+      marginByCategoryMap.set(
+        category,
+        roundToCents((marginByCategoryMap.get(category) ?? 0) + line.lineMarginEuro),
+      );
+      const currentQty = productQtyMap.get(line.productId) ?? {
+        name: line.productName,
+        quantity: 0,
+      };
+      currentQty.quantity += line.quantity;
+      productQtyMap.set(line.productId, currentQty);
+    }
+  }
+
+  const revenueByCategory = Array.from(revenueByCategoryMap.entries())
+    .map(([category, revenue]) => ({ category, revenue: roundToCents(revenue) }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const marginByCategory = Array.from(marginByCategoryMap.entries())
+    .map(([category, margin]) => ({ category, margin: roundToCents(margin) }))
+    .sort((a, b) => b.margin - a.margin);
+
+  const bestClients = Array.from(clientRevenueMap.values())
+    .map((item) => ({
+      companyName: item.companyName,
+      email: item.email,
+      revenue: roundToCents(item.revenue),
+      ordersCount: item.ordersCount,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 8);
+
+  const allProductTrendRows = state.products.map((product) => ({
+    productId: product.id,
+    productName: product.name,
+    orderedQuantity: productQtyMap.get(product.id)?.quantity ?? 0,
+  }));
+
+  const trendingProducts = [...allProductTrendRows]
+    .sort((a, b) => b.orderedQuantity - a.orderedQuantity)
+    .slice(0, 8);
+
+  const nonTrendingProducts = [...allProductTrendRows]
+    .sort((a, b) => a.orderedQuantity - b.orderedQuantity)
+    .slice(0, 8);
+
   return {
     totalRevenue,
     totalMargin,
     breakEvenRevenue,
     lowMarginPercentAlert: state.lowMarginPercentAlert,
     productMargins,
-    ordersCount: state.orders.length,
+    ordersCount: billableOrders.length,
     stockAlerts: state.products.filter((product) => product.stock <= 5).length,
     supportOpenTickets: state.supportTickets.filter((ticket) => ticket.status !== "CLOSED").length,
+    bestClients,
+    revenueByCategory,
+    marginByCategory,
+    trendingProducts,
+    nonTrendingProducts,
   };
 }
 
@@ -2129,11 +2237,55 @@ export async function clientOverview(userId: string) {
       quantity: item.quantity,
     }));
 
+  const globalByProduct = new Map<string, number>();
+  for (const order of state.orders) {
+    if (order.status === "ANNULEE") {
+      continue;
+    }
+    for (const line of order.lines) {
+      globalByProduct.set(line.productId, (globalByProduct.get(line.productId) ?? 0) + line.quantity);
+    }
+  }
+
+  const userByProduct = new Map<string, number>();
+  for (const order of orders) {
+    if (order.status === "ANNULEE") {
+      continue;
+    }
+    for (const line of order.lines) {
+      userByProduct.set(line.productId, (userByProduct.get(line.productId) ?? 0) + line.quantity);
+    }
+  }
+
+  const recommendedItems = state.products
+    .filter((product) => product.stock > 0)
+    .map((product) => {
+      const userQty = userByProduct.get(product.id) ?? 0;
+      const globalQty = globalByProduct.get(product.id) ?? 0;
+      const score = userQty * 100 + globalQty;
+      let reason: "habitudes" | "tendance" | "mixte" = "tendance";
+      if (userQty > 0 && globalQty > 0) {
+        reason = "mixte";
+      } else if (userQty > 0) {
+        reason = "habitudes";
+      }
+      return {
+        productId: product.id,
+        productName: product.name,
+        score,
+        reason,
+      };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
   return {
     totalOrders: orders.length,
     ongoingOrders,
     pastOrders,
     frequentItems,
+    recommendedItems,
   };
 }
 

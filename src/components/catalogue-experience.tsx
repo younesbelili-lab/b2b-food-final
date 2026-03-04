@@ -98,6 +98,37 @@ type AdminClientProfile = {
   ordersCount: number;
 };
 
+type AdminDashboardStats = {
+  totalRevenue: number;
+  totalMargin: number;
+  breakEvenRevenue: number;
+  ordersCount: number;
+  bestClients: Array<{
+    companyName: string;
+    email: string;
+    revenue: number;
+    ordersCount: number;
+  }>;
+  revenueByCategory: Array<{
+    category: string;
+    revenue: number;
+  }>;
+  marginByCategory: Array<{
+    category: string;
+    margin: number;
+  }>;
+  trendingProducts: Array<{
+    productId: string;
+    productName: string;
+    orderedQuantity: number;
+  }>;
+  nonTrendingProducts: Array<{
+    productId: string;
+    productName: string;
+    orderedQuantity: number;
+  }>;
+};
+
 const categories = ["Toutes", "Fruits", "Legumes", "Viandes", "Boissons"] as const;
 const productCategories = ["Fruits", "Legumes", "Viandes", "Boissons"] as const;
 const meatSubcategories = ["Volailles", "Viandes blanches", "Viandes rouges"] as const;
@@ -188,7 +219,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [productsState, setProductsState] = useState<CatalogueProduct[]>(
     products.map((item) => normalizeProduct(item)).filter((item): item is CatalogueProduct => item !== null),
   );
-  const [activeTab, setActiveTab] = useState<"catalogue" | "history" | "admin-add" | "clients">("catalogue");
+  const [activeTab, setActiveTab] = useState<"catalogue" | "history" | "admin-add" | "clients" | "stats">("catalogue");
   const [category, setCategory] = useState<(typeof categories)[number]>("Toutes");
   const [onlyPromo, setOnlyPromo] = useState(false);
   const [selectedSubcategory, setSelectedSubcategory] = useState<
@@ -225,6 +256,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [clientsTab, setClientsTab] = useState<"active" | "deleted">("active");
   const [processingClientId, setProcessingClientId] = useState<string | null>(null);
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+  const [adminStats, setAdminStats] = useState<AdminDashboardStats | null>(null);
+  const [adminStatsLoading, setAdminStatsLoading] = useState(false);
+  const [adminStatsError, setAdminStatsError] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editDeliveryDate, setEditDeliveryDate] = useState("");
   const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
@@ -336,6 +370,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       await reloadProducts();
       await reloadOrders();
       await reloadAdminClients();
+      await reloadAdminStats();
     })();
   }, [router]);
 
@@ -379,6 +414,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       void reloadOrders();
       if (sessionRole === "ADMIN") {
         void reloadAdminClients();
+        void reloadAdminStats();
         if (selectedClientId) {
           void loadAdminClientProfile(selectedClientId);
         }
@@ -875,6 +911,27 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
     }
   }
 
+  async function reloadAdminStats() {
+    if (sessionRole !== "ADMIN") {
+      return;
+    }
+    setAdminStatsLoading(true);
+    setAdminStatsError("");
+    try {
+      const response = await fetch("/api/admin/dashboard", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAdminStatsError(data.error ?? "Impossible de charger les statistiques.");
+        return;
+      }
+      setAdminStats(data.item ?? null);
+    } catch {
+      setAdminStatsError("Impossible de charger les statistiques.");
+    } finally {
+      setAdminStatsLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -933,8 +990,124 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
               Clients
             </button>
           )}
+          {sessionRole === "ADMIN" && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("stats");
+                void reloadAdminStats();
+              }}
+              className={
+                activeTab === "stats"
+                  ? "rounded-full bg-amber-700 px-4 py-2 text-sm font-semibold text-white"
+                  : "rounded-full border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              }
+            >
+              Statistiques
+            </button>
+          )}
         </div>
       </section>
+
+      {sessionRole === "ADMIN" && activeTab === "stats" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-bold">Statistiques business</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            CA global, marge, meilleurs clients, tendances produits et categories.
+          </p>
+          {adminStatsLoading && <p className="mt-3 text-sm text-slate-600">Chargement...</p>}
+          {adminStatsError && <p className="mt-3 text-sm text-rose-700">{adminStatsError}</p>}
+          {!adminStatsLoading && !adminStatsError && adminStats && (
+            <div className="mt-4 space-y-5">
+              <div className="grid gap-3 md:grid-cols-4">
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">CA global</p>
+                  <p className="text-lg font-semibold">{adminStats.totalRevenue.toFixed(2)} EUR</p>
+                </article>
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Marge globale</p>
+                  <p className="text-lg font-semibold">{adminStats.totalMargin.toFixed(2)} EUR</p>
+                </article>
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Commandes</p>
+                  <p className="text-lg font-semibold">{adminStats.ordersCount}</p>
+                </article>
+                <article className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Seuil rentabilite</p>
+                  <p className="text-lg font-semibold">{adminStats.breakEvenRevenue.toFixed(2)} EUR</p>
+                </article>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <article className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold">Meilleurs clients</h3>
+                  <div className="mt-2 space-y-2 text-sm">
+                    {adminStats.bestClients.map((client) => (
+                      <div key={`${client.email}-${client.companyName}`} className="flex items-center justify-between gap-2">
+                        <p className="truncate">{client.companyName}</p>
+                        <p className="font-semibold">{client.revenue.toFixed(2)} EUR</p>
+                      </div>
+                    ))}
+                    {adminStats.bestClients.length === 0 && <p className="text-slate-500">Aucune donnee.</p>}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold">CA par categorie</h3>
+                  <div className="mt-2 space-y-2 text-sm">
+                    {adminStats.revenueByCategory.map((item) => (
+                      <div key={item.category} className="flex items-center justify-between gap-2">
+                        <p>{item.category}</p>
+                        <p className="font-semibold">{item.revenue.toFixed(2)} EUR</p>
+                      </div>
+                    ))}
+                    {adminStats.revenueByCategory.length === 0 && <p className="text-slate-500">Aucune donnee.</p>}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold">Marge par categorie</h3>
+                  <div className="mt-2 space-y-2 text-sm">
+                    {adminStats.marginByCategory.map((item) => (
+                      <div key={item.category} className="flex items-center justify-between gap-2">
+                        <p>{item.category}</p>
+                        <p className="font-semibold">{item.margin.toFixed(2)} EUR</p>
+                      </div>
+                    ))}
+                    {adminStats.marginByCategory.length === 0 && <p className="text-slate-500">Aucune donnee.</p>}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold">Produits tendances</h3>
+                  <div className="mt-2 space-y-2 text-sm">
+                    {adminStats.trendingProducts.map((product) => (
+                      <div key={product.productId} className="flex items-center justify-between gap-2">
+                        <p>{product.productName}</p>
+                        <p className="font-semibold">{product.orderedQuantity}</p>
+                      </div>
+                    ))}
+                    {adminStats.trendingProducts.length === 0 && <p className="text-slate-500">Aucune donnee.</p>}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-slate-200 p-4 lg:col-span-2">
+                  <h3 className="text-sm font-semibold">Produits peu tendances</h3>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2 text-sm">
+                    {adminStats.nonTrendingProducts.map((product) => (
+                      <div key={product.productId} className="flex items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-2">
+                        <p>{product.productName}</p>
+                        <p className="font-semibold">{product.orderedQuantity}</p>
+                      </div>
+                    ))}
+                    {adminStats.nonTrendingProducts.length === 0 && <p className="text-slate-500">Aucune donnee.</p>}
+                  </div>
+                </article>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {sessionRole === "ADMIN" && activeTab === "admin-add" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

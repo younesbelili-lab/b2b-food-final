@@ -33,6 +33,12 @@ type ClientOverview = {
     productName: string;
     quantity: number;
   }>;
+  recommendedItems?: Array<{
+    productId: string;
+    productName: string;
+    reason: "habitudes" | "tendance" | "mixte";
+    score: number;
+  }>;
 };
 
 const paymentMethods = [
@@ -69,6 +75,16 @@ function getMinDeliveryDateIso(now = new Date()): string {
   const delivery = new Date(now);
   delivery.setDate(now.getDate() + days);
   return delivery.toISOString().split("T")[0];
+}
+
+function recommendationReasonLabel(reason: "habitudes" | "tendance" | "mixte") {
+  if (reason === "habitudes") {
+    return "Selon vos habitudes";
+  }
+  if (reason === "mixte") {
+    return "Habitudes + tendance";
+  }
+  return "Tendance globale";
 }
 
 export function CheckoutWorkflow() {
@@ -156,6 +172,13 @@ export function CheckoutWorkflow() {
     0,
   );
 
+  function addRecommendedProduct(productId: string) {
+    setQuantities((prev) => ({
+      ...prev,
+      [productId]: (prev[productId] ?? 0) + 1,
+    }));
+  }
+
   async function submitCheckout() {
     setLoading(true);
     setError("");
@@ -227,6 +250,35 @@ export function CheckoutWorkflow() {
               >
                 {item.productName} ({item.quantity})
               </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {overview && overview.recommendedItems && overview.recommendedItems.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Panier intelligent</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Suggestions basees sur vos habitudes et les tendances globales.
+          </p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {overview.recommendedItems.map((item) => (
+              <div
+                key={item.productId}
+                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-semibold">{item.productName}</p>
+                  <p className="text-xs text-slate-500">{recommendationReasonLabel(item.reason)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addRecommendedProduct(item.productId)}
+                  className="rounded-md border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-700"
+                >
+                  Ajouter
+                </button>
+              </div>
             ))}
           </div>
         </section>
