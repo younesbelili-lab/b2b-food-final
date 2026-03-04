@@ -159,8 +159,19 @@ let dbSchemaReady: Promise<void> | null = null;
 let lastDatabaseReadFailed = false;
 let forceDirectClient = false;
 
+function getDatabaseConnectionString() {
+  return (
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL_POSTGRES_URL ||
+    process.env.DATABASE_URL_PRISMA_DATABASE_URL ||
+    ""
+  );
+}
+
 function isDatabaseEnabled() {
-  return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+  return Boolean(getDatabaseConnectionString());
 }
 
 function isInvalidConnectionStringError(error: unknown) {
@@ -194,7 +205,7 @@ async function runDbQuery<T>(
     }
   }
 
-  const connectionString = process.env.POSTGRES_URL ?? process.env.DATABASE_URL;
+  const connectionString = getDatabaseConnectionString();
   if (!connectionString) {
     throw new Error("Missing database connection string.");
   }

@@ -6,6 +6,17 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get(getSessionCookieName())?.value;
   const session = verifySessionToken(token);
   const isAuthenticated = session !== null;
+  const host = request.headers.get("host") ?? "";
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    host.endsWith(".vercel.app") &&
+    host !== "b2b-food-final.vercel.app"
+  ) {
+    const canonical = new URL(request.url);
+    canonical.host = "b2b-food-final.vercel.app";
+    return NextResponse.redirect(canonical);
+  }
 
   const isAuthApi = pathname.startsWith("/api/auth/");
   const isRootLoginPage = pathname === "/";
@@ -56,7 +67,6 @@ export function proxy(request: NextRequest) {
     `default-src 'self'; img-src 'self' https: data:; ${scriptSrc} style-src 'self' 'unsafe-inline';`,
   );
 
-  const host = request.headers.get("host") ?? "";
   const isLocalHost =
     host.startsWith("localhost") ||
     host.startsWith("127.0.0.1") ||
