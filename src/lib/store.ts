@@ -1,6 +1,6 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
-import { createClient, sql } from "@vercel/postgres";
+import { createClient, sql, type QueryResultRow } from "@vercel/postgres";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -176,7 +176,7 @@ function isInvalidConnectionStringError(error: unknown) {
   );
 }
 
-async function runDbQuery<T>(
+async function runDbQuery<T extends QueryResultRow>(
   strings: TemplateStringsArray,
   ...values: unknown[]
 ): Promise<{ rows: T[] }> {
