@@ -866,6 +866,8 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
         return;
       }
       await reloadOrders();
+      setEditingOrderId(null);
+      setEditLines([]);
       router.replace("/catalogue");
       setActiveTab("history");
     } finally {
@@ -1441,6 +1443,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
           <p className="mt-2 text-xs text-slate-600">
             Mode edition commande {editOrderIdFromQuery}: ajuste le panier puis clique sur "Appliquer a la commande".
           </p>
+        )}
+        {editOrderIdFromQuery && historyError && (
+          <p className="mt-2 text-sm text-rose-700">{historyError}</p>
         )}
         <div className="mt-3 border-t border-slate-200 pt-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Panier</p>
