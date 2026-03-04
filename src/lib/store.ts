@@ -1049,6 +1049,124 @@ function isoDateToRunAt(isoDate: string) {
 
 const PROJECTED_ORDER_PREFIX = "proj-";
 
+function parseProjectedOrderId(orderId: string): { recurringId: string; deliveryDate: string } | null {
+  if (!orderId.startsWith(PROJECTED_ORDER_PREFIX)) {
+    return null;
+  }
+  const raw = orderId.slice(PROJECTED_ORDER_PREFIX.length);
+  const firstDash = raw.indexOf("-");
+  if (firstDash <= 0) {
+    return null;
+  }
+  const recurringId = raw.slice(0, firstDash);
+  const deliveryDate = raw.slice(firstDash + 1);
+  if (!recurringId || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+    return null;
+  }
+  return { recurringId, deliveryDate };
+}
+
+function buildNextQuantities(lines: Array<{ productId: string; quantity: number }>) {
+  if (!lines.length) {
+    throw new Error("La commande doit contenir au moins un article.");
+  }
+  const nextQuantities = new Map<string, number>();
+  for (const line of lines) {
+    const productId = String(line.productId ?? "").trim();
+    const quantity = Math.floor(Number(line.quantity));
+    if (!productId) {
+      throw new Error("Produit invalide.");
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error("Quantite invalide.");
+    }
+    nextQuantities.set(productId, (nextQuantities.get(productId) ?? 0) + quantity);
+  }
+  return nextQuantities;
+}
+
+function applyLinesToOrder(order: Order, nextQuantities: Map<string, number>) {
+  const previousQuantities = new Map<string, number>();
+  for (const line of order.lines) {
+    previousQuantities.set(line.productId, (previousQuantities.get(line.productId) ?? 0) + line.quantity);
+  }
+
+  const allProductIds = new Set<string>([
+    ...Array.from(previousQuantities.keys()),
+    ...Array.from(nextQuantities.keys()),
+  ]);
+
+  for (const productId of allProductIds) {
+    const product = state.products.find((item) => item.id === productId);
+    const previousQty = previousQuantities.get(productId) ?? 0;
+    const nextQty = nextQuantities.get(productId) ?? 0;
+    const delta = nextQty - previousQty;
+    if (delta <= 0) {
+      continue;
+    }
+    if (!product) {
+      throw new Error(`Produit introuvable: ${productId}`);
+    }
+    if (product.stock < delta) {
+      throw new Error(`Stock insuffisant pour ${product.name}.`);
+    }
+  }
+
+  const nextLines: OrderLine[] = [];
+  for (const [productId, quantity] of nextQuantities.entries()) {
+    const product = state.products.find((item) => item.id === productId);
+    if (!product) {
+      throw new Error(`Produit introuvable: ${productId}`);
+    }
+    const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
+    const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
+    nextLines.push({
+      productId: product.id,
+      productName: product.name,
+      quantity,
+      unitPriceHt: finalUnitHt,
+      unitPriceTtc: unitTtc,
+      tvaRate: product.tvaRate,
+      lineTotalHt: roundToCents(finalUnitHt * quantity),
+      lineTotalTtc: roundToCents(unitTtc * quantity),
+      lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, quantity),
+      lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
+    });
+  }
+
+  for (const productId of allProductIds) {
+    const product = state.products.find((item) => item.id === productId);
+    if (!product) {
+      continue;
+    }
+    const previousQty = previousQuantities.get(productId) ?? 0;
+    const nextQty = nextQuantities.get(productId) ?? 0;
+    const delta = nextQty - previousQty;
+    if (delta === 0) {
+      continue;
+    }
+    product.stock -= delta;
+    state.stockMovements.push({
+      id: id("stm"),
+      productId: product.id,
+      change: -delta,
+      reason: "MANUAL_ADJUSTMENT",
+      relatedOrderId: order.id,
+      createdAt: nowIso(),
+    });
+  }
+
+  order.lines = nextLines;
+  order.totalHt = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalHt, 0));
+  order.totalTtc = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
+  order.totalTva = roundToCents(order.totalTtc - order.totalHt);
+
+  const payment = state.payments.find((item) => item.id === order.paymentId);
+  if (payment) {
+    payment.amountTtc = order.totalTtc;
+  }
+}
+
 function buildProjectedRecurringOrders(userId?: string): Order[] {
   const projected: Order[] = [];
   const horizon = new Date();
@@ -1682,7 +1800,93 @@ export async function updateOrder(
   },
 ): Promise<Order> {
   await syncSharedStateFromDisk();
-  const order = state.orders.find((item) => item.id === orderId);
+  const projected = parseProjectedOrderId(orderId);
+  let order = state.orders.find((item) => item.id === orderId);
+
+  if (!order && projected) {
+    const recurring = state.recurringOrders.find((item) => item.id === projected.recurringId);
+    if (!recurring) {
+      throw new Error("Commande recurrente introuvable.");
+    }
+    const user = state.users.find(
+      (item) => item.id === recurring.userId && item.role === "CLIENT" && !item.deletedAt,
+    );
+    if (!user) {
+      throw new Error("Client introuvable.");
+    }
+    if (actor.role === "CLIENT") {
+      const sessionUser = state.users.find(
+        (item) =>
+          item.role === "CLIENT" &&
+          !item.deletedAt &&
+          item.email.toLowerCase() === String(actor.email ?? "").toLowerCase(),
+      );
+      if (!sessionUser || sessionUser.id !== user.id) {
+        throw new Error("Acces refuse.");
+      }
+    }
+
+    if (typeof payload.deliveryAddress === "string") {
+      const nextAddress = payload.deliveryAddress.trim();
+      if (!nextAddress) {
+        throw new Error("L'adresse de livraison est obligatoire.");
+      }
+      recurring.deliveryAddress = nextAddress;
+    }
+
+    if (Array.isArray(payload.lines)) {
+      const nextQuantities = buildNextQuantities(payload.lines);
+      recurring.lines = Array.from(nextQuantities.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      }));
+
+      const futureOrders = state.orders.filter(
+        (item) =>
+          item.recurringOrderId === recurring.id &&
+          !isOrderTerminal(item.status) &&
+          item.deliveryDate >= projected.deliveryDate,
+      );
+      for (const futureOrder of futureOrders) {
+        applyLinesToOrder(futureOrder, nextQuantities);
+      }
+    }
+
+    if (typeof payload.deliveryDate === "string" && payload.deliveryDate) {
+      recurring.nextRunAt = isoDateToRunAt(payload.deliveryDate);
+    }
+
+    if (typeof payload.deliveryAddress === "string") {
+      const nextAddress = recurring.deliveryAddress || user.address || "Adresse non precisee";
+      const futureOrders = state.orders.filter(
+        (item) =>
+          item.recurringOrderId === recurring.id &&
+          !isOrderTerminal(item.status) &&
+          item.deliveryDate >= projected.deliveryDate,
+      );
+      for (const futureOrder of futureOrders) {
+        futureOrder.deliveryAddress = nextAddress;
+      }
+    }
+
+    await persistSharedState();
+    const projectedOrders = buildProjectedRecurringOrders(user.id);
+    const projectedUpdated = projectedOrders.find((item) => item.id === orderId);
+    if (projectedUpdated) {
+      return projectedUpdated;
+    }
+    const persistedUpdated = state.orders.find(
+      (item) =>
+        item.recurringOrderId === recurring.id &&
+        item.deliveryDate >= projected.deliveryDate &&
+        !isOrderTerminal(item.status),
+    );
+    if (persistedUpdated) {
+      return persistedUpdated;
+    }
+    throw new Error("Commande introuvable.");
+  }
+
   if (!order) {
     throw new Error("Commande introuvable.");
   }
@@ -1718,106 +1922,9 @@ export async function updateOrder(
     }
     order.deliveryAddress = nextAddress;
   }
-  if (Array.isArray(payload.lines)) {
-    if (!payload.lines.length) {
-      throw new Error("La commande doit contenir au moins un article.");
-    }
-
-    const nextQuantities = new Map<string, number>();
-    for (const line of payload.lines) {
-      const productId = String(line.productId ?? "").trim();
-      const quantity = Math.floor(Number(line.quantity));
-      if (!productId) {
-        throw new Error("Produit invalide.");
-      }
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error("Quantite invalide.");
-      }
-      nextQuantities.set(productId, (nextQuantities.get(productId) ?? 0) + quantity);
-    }
-
-    const previousQuantities = new Map<string, number>();
-    for (const line of order.lines) {
-      previousQuantities.set(
-        line.productId,
-        (previousQuantities.get(line.productId) ?? 0) + line.quantity,
-      );
-    }
-
-    const allProductIds = new Set<string>([
-      ...Array.from(previousQuantities.keys()),
-      ...Array.from(nextQuantities.keys()),
-    ]);
-
-    for (const productId of allProductIds) {
-      const product = state.products.find((item) => item.id === productId);
-      const previousQty = previousQuantities.get(productId) ?? 0;
-      const nextQty = nextQuantities.get(productId) ?? 0;
-      const delta = nextQty - previousQty;
-      if (delta <= 0) {
-        continue;
-      }
-      if (!product) {
-        throw new Error(`Produit introuvable: ${productId}`);
-      }
-      if (product.stock < delta) {
-        throw new Error(`Stock insuffisant pour ${product.name}.`);
-      }
-    }
-
-    const nextLines: OrderLine[] = [];
-    for (const [productId, quantity] of nextQuantities.entries()) {
-      const product = state.products.find((item) => item.id === productId);
-      if (!product) {
-        throw new Error(`Produit introuvable: ${productId}`);
-      }
-      const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
-      const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
-      nextLines.push({
-        productId: product.id,
-        productName: product.name,
-        quantity,
-        unitPriceHt: finalUnitHt,
-        unitPriceTtc: unitTtc,
-        tvaRate: product.tvaRate,
-        lineTotalHt: roundToCents(finalUnitHt * quantity),
-        lineTotalTtc: roundToCents(unitTtc * quantity),
-        lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, quantity),
-        lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
-      });
-    }
-
-    for (const productId of allProductIds) {
-      const product = state.products.find((item) => item.id === productId);
-      if (!product) {
-        continue;
-      }
-      const previousQty = previousQuantities.get(productId) ?? 0;
-      const nextQty = nextQuantities.get(productId) ?? 0;
-      const delta = nextQty - previousQty;
-      if (delta === 0) {
-        continue;
-      }
-      product.stock -= delta;
-      state.stockMovements.push({
-        id: id("stm"),
-        productId: product.id,
-        change: -delta,
-        reason: "MANUAL_ADJUSTMENT",
-        relatedOrderId: order.id,
-        createdAt: nowIso(),
-      });
-    }
-
-    order.lines = nextLines;
-    order.totalHt = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalHt, 0));
-    order.totalTtc = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
-    order.totalTva = roundToCents(order.totalTtc - order.totalHt);
-
-    const payment = state.payments.find((item) => item.id === order.paymentId);
-    if (payment) {
-      payment.amountTtc = order.totalTtc;
-    }
+  const nextQuantities = Array.isArray(payload.lines) ? buildNextQuantities(payload.lines) : null;
+  if (nextQuantities) {
+    applyLinesToOrder(order, nextQuantities);
   }
 
   if (order.recurrence !== "NONE" && order.recurringOrderId) {
@@ -1825,14 +1932,28 @@ export async function updateOrder(
       (item) => item.id === order.recurringOrderId && item.userId === order.userId,
     );
     if (recurring) {
-      if (Array.isArray(payload.lines)) {
-        recurring.lines = order.lines.map((line) => ({
-          productId: line.productId,
-          quantity: line.quantity,
+      if (nextQuantities) {
+        recurring.lines = Array.from(nextQuantities.entries()).map(([productId, quantity]) => ({
+          productId,
+          quantity,
         }));
       }
       recurring.deliveryAddress = order.deliveryAddress;
       recurring.nextRunAt = getNextRunAt(isoDateToRunAt(order.deliveryDate), recurring.frequency);
+
+      const futureOrders = state.orders.filter(
+        (item) =>
+          item.recurringOrderId === recurring.id &&
+          item.id !== order.id &&
+          !isOrderTerminal(item.status) &&
+          item.deliveryDate > order.deliveryDate,
+      );
+      for (const futureOrder of futureOrders) {
+        if (nextQuantities) {
+          applyLinesToOrder(futureOrder, nextQuantities);
+        }
+        futureOrder.deliveryAddress = recurring.deliveryAddress;
+      }
     }
   }
 

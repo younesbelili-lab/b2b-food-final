@@ -1630,7 +1630,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                       type="button"
                       onClick={() => startOrderEdit(order)}
                       disabled={
-                        isProjectedRecurringOrder ||
                         processingOrderId === order.id ||
                         order.status === "ANNULEE"
                       }
@@ -1653,7 +1652,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                   </div>
                   {isProjectedRecurringOrder && (
                     <p className="mt-2 text-xs text-slate-500">
-                      Commande recurrente projetee: modifie la commande source pour mettre a jour les prochaines occurrences.
+                      Commande recurrente projetee: toute modification est appliquee a cette occurrence et aux suivantes.
                     </p>
                   )}
                   {editingOrderId === order.id && (
