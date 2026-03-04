@@ -229,8 +229,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [editDeliveryDate, setEditDeliveryDate] = useState("");
   const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
   const [editLines, setEditLines] = useState<Array<{ productId: string; quantity: number }>>([]);
-  const [newEditLineProductId, setNewEditLineProductId] = useState("");
-  const [newEditLineQuantity, setNewEditLineQuantity] = useState(1);
   const [isApplyingCatalogueEdit, setIsApplyingCatalogueEdit] = useState(false);
   const editOrderIdFromQuery = searchParams.get("editOrder");
 
@@ -563,11 +561,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       );
   }, [productsState, selectedLines]);
 
-  const editableAddableProducts = useMemo(() => {
-    const usedProductIds = new Set(editLines.map((line) => line.productId));
-    return productsState.filter((product) => !usedProductIds.has(product.id));
-  }, [editLines, productsState]);
-
   function updateQuantity(productId: string, value: number) {
     setQuantities((prev) => ({
       ...prev,
@@ -771,8 +764,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
     setEditDeliveryDate(order.deliveryDate);
     setEditDeliveryAddress(order.deliveryAddress ?? "");
     setEditLines(order.lines.map((line) => ({ productId: line.productId, quantity: line.quantity })));
-    setNewEditLineProductId("");
-    setNewEditLineQuantity(1);
   }
 
   function updateEditLineQuantity(productId: string, quantity: number) {
@@ -787,20 +778,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
 
   function removeEditLine(productId: string) {
     setEditLines((prev) => prev.filter((line) => line.productId !== productId));
-  }
-
-  function addEditLine() {
-    const productId = newEditLineProductId.trim();
-    const quantity = Math.max(1, Math.floor(newEditLineQuantity));
-    if (!productId) {
-      return;
-    }
-    if (editLines.some((line) => line.productId === productId)) {
-      return;
-    }
-    setEditLines((prev) => [...prev, { productId, quantity }]);
-    setNewEditLineProductId("");
-    setNewEditLineQuantity(1);
   }
 
   async function saveOrderEdit(orderId: string) {
@@ -1715,38 +1692,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                             </p>
                           )}
                         </div>
-                        <div className="mt-3 grid grid-cols-[1fr_110px_auto] gap-2">
-                          <select
-                            value={newEditLineProductId}
-                            onChange={(event) => setNewEditLineProductId(event.target.value)}
-                            className="rounded-md border border-slate-300 px-3 py-2 text-xs"
-                          >
-                            <option value="">Ajouter un article...</option>
-                            {editableAddableProducts.map((product) => (
-                              <option key={product.id} value={product.id}>
-                                {product.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            min={1}
-                            value={newEditLineQuantity}
-                            onChange={(event) =>
-                              setNewEditLineQuantity(
-                                Math.max(1, Math.floor(Number(event.target.value) || 1)),
-                              )
-                            }
-                            className="rounded-md border border-slate-300 px-3 py-2 text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={addEditLine}
-                            className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
-                          >
-                            Ajouter
-                          </button>
-                        </div>
+                        <p className="mt-3 text-xs text-slate-500">
+                          Pour ajouter de nouveaux articles, utilise le bouton "Ajouter via catalogue".
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <button
