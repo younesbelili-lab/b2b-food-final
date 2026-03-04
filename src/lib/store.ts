@@ -841,12 +841,14 @@ export async function deleteAdminProduct(productId: string) {
 
 export async function listOrdersByUser(userId: string): Promise<Order[] > {
   await syncSharedStateFromDisk();
-  return state.orders.filter((order) => order.userId === userId);
+  const persisted = state.orders.filter((order) => order.userId === userId);
+  const projected = buildProjectedRecurringOrders(userId);
+  return [...persisted, ...projected];
 }
 
 export async function listAllOrders(): Promise<Order[] > {
   await syncSharedStateFromDisk();
-  return state.orders;
+  return [...state.orders, ...buildProjectedRecurringOrders()];
 }
 
 export async function getOrderById(orderId: string): Promise<Order | undefined > {
@@ -1043,6 +1045,100 @@ function getNextAllowedDeliveryDate(now = new Date()) {
 
 function isoDateToRunAt(isoDate: string) {
   return `${isoDate}T08:00:00.000Z`;
+}
+
+const PROJECTED_ORDER_PREFIX = "proj-";
+
+function buildProjectedRecurringOrders(userId?: string): Order[] {
+  const projected: Order[] = [];
+  const horizon = new Date();
+  horizon.setUTCDate(horizon.getUTCDate() + 84); // ~12 weeks visibility for planning.
+  const horizonTs = horizon.getTime();
+
+  for (const recurring of state.recurringOrders) {
+    if (!recurring.active) {
+      continue;
+    }
+    if (userId && recurring.userId !== userId) {
+      continue;
+    }
+
+    const user = state.users.find(
+      (item) => item.id === recurring.userId && item.role === "CLIENT" && !item.deletedAt,
+    );
+    if (!user) {
+      continue;
+    }
+
+    let runAt = new Date(recurring.nextRunAt);
+    let guard = 0;
+    while (!Number.isNaN(runAt.getTime()) && runAt.getTime() <= horizonTs && guard < 48) {
+      guard += 1;
+      const deliveryDate = runAt.toISOString().split("T")[0];
+      const alreadyExists = state.orders.some(
+        (order) =>
+          order.userId === user.id &&
+          order.recurringOrderId === recurring.id &&
+          order.deliveryDate === deliveryDate,
+      );
+      if (!alreadyExists) {
+        const lines: OrderLine[] = recurring.lines
+          .map((line) => {
+            const product = state.products.find((item) => item.id === line.productId);
+            if (!product || line.quantity <= 0) {
+              return null;
+            }
+            const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
+            const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
+            return {
+              productId: product.id,
+              productName: product.name,
+              quantity: line.quantity,
+              unitPriceHt: finalUnitHt,
+              unitPriceTtc: unitTtc,
+              tvaRate: product.tvaRate,
+              lineTotalHt: roundToCents(finalUnitHt * line.quantity),
+              lineTotalTtc: roundToCents(unitTtc * line.quantity),
+              lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, line.quantity),
+              lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
+            } satisfies OrderLine;
+          })
+          .filter((line): line is OrderLine => line !== null);
+
+        if (lines.length > 0) {
+          const totalHt = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalHt, 0));
+          const totalTtc = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
+          const totalTva = roundToCents(totalTtc - totalHt);
+          const syntheticId = `${PROJECTED_ORDER_PREFIX}${recurring.id}-${deliveryDate}`;
+
+          projected.push({
+            id: syntheticId,
+            userId: user.id,
+            clientCompany: user.companyName,
+            clientEmail: user.email,
+            status: "A_PREPARER",
+            deliveryDate,
+            deliveryAddress: recurring.deliveryAddress || user.address || "Adresse non precisee",
+            createdAt: runAt.toISOString(),
+            lines,
+            totalHt,
+            totalTva,
+            totalTtc,
+            paymentId: `${PROJECTED_ORDER_PREFIX}pay-${recurring.id}-${deliveryDate}`,
+            invoiceNumber: "",
+            deliveryNoteNumber: "",
+            receptionConfirmed: false,
+            recurrence: recurring.frequency,
+            recurringOrderId: recurring.id,
+          });
+        }
+      }
+
+      runAt = new Date(getNextRunAt(runAt.toISOString(), recurring.frequency));
+    }
+  }
+
+  return projected;
 }
 
 async function materializeRecurringOrders() {
@@ -1512,13 +1608,11 @@ export async function restoreClientUser(userId: string): Promise<User> {
         recurring.active = true;
       }
     }
-    const today = new Date().toISOString().split("T")[0];
     for (const order of state.orders) {
       if (
         order.userId === userId &&
         order.status === "ANNULEE" &&
-        order.cancellationReason === "CLIENT_DELETED" &&
-        order.deliveryDate >= today
+        order.cancellationReason === "CLIENT_DELETED"
       ) {
         order.status = "A_PREPARER";
         delete order.cancellationReason;

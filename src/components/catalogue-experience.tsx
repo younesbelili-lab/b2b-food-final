@@ -1581,6 +1581,10 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
             <div className="mt-4 space-y-3">
               {filteredOrders.map((order) => (
                 <article key={order.id} className="rounded-lg border border-slate-200 p-4">
+                  {(() => {
+                    const isProjectedRecurringOrder = order.id.startsWith("proj-");
+                    return (
+                      <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">Commande {order.id}</p>
                     <p className="text-sm font-semibold">{order.totalTtc.toFixed(2)} EUR TTC</p>
@@ -1625,7 +1629,11 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                     <button
                       type="button"
                       onClick={() => startOrderEdit(order)}
-                      disabled={processingOrderId === order.id || order.status === "ANNULEE"}
+                      disabled={
+                        isProjectedRecurringOrder ||
+                        processingOrderId === order.id ||
+                        order.status === "ANNULEE"
+                      }
                       className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold disabled:text-slate-400"
                     >
                       Modifier
@@ -1633,12 +1641,21 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                     <button
                       type="button"
                       onClick={() => void cancelOrder(order.id)}
-                      disabled={processingOrderId === order.id || order.status === "ANNULEE"}
+                      disabled={
+                        isProjectedRecurringOrder ||
+                        processingOrderId === order.id ||
+                        order.status === "ANNULEE"
+                      }
                       className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:text-slate-400"
                     >
                       {processingOrderId === order.id ? "Traitement..." : "Supprimer / Annuler"}
                     </button>
                   </div>
+                  {isProjectedRecurringOrder && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Commande recurrente projetee: modifie la commande source pour mettre a jour les prochaines occurrences.
+                    </p>
+                  )}
                   {editingOrderId === order.id && (
                     <div className="mt-3 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
                       <label className="font-medium text-slate-700">
@@ -1730,6 +1747,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                       </div>
                     </div>
                   )}
+                      </>
+                    );
+                  })()}
                 </article>
               ))}
               {filteredOrders.length === 0 && (
