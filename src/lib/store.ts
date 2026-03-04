@@ -1056,13 +1056,13 @@ function parseProjectedOrderId(orderId: string): { recurringId: string; delivery
     return null;
   }
   const raw = orderId.slice(PROJECTED_ORDER_PREFIX.length);
-  const firstDash = raw.indexOf("-");
-  if (firstDash <= 0) {
+  const match = raw.match(/^(.*)-(\d{4}-\d{2}-\d{2})$/);
+  if (!match) {
     return null;
   }
-  const recurringId = raw.slice(0, firstDash);
-  const deliveryDate = raw.slice(firstDash + 1);
-  if (!recurringId || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+  const recurringId = match[1];
+  const deliveryDate = match[2];
+  if (!recurringId) {
     return null;
   }
   return { recurringId, deliveryDate };
@@ -1748,7 +1748,110 @@ export async function cancelOrder(
   actor: { role: "ADMIN" | "CLIENT"; email?: string },
 ): Promise<Order> {
   await syncSharedStateFromDisk();
-  const order = state.orders.find((item) => item.id === orderId);
+  let order = state.orders.find((item) => item.id === orderId);
+  const projected = parseProjectedOrderId(orderId);
+
+  if (!order && projected) {
+    const recurring = state.recurringOrders.find((item) => item.id === projected.recurringId);
+    if (!recurring) {
+      throw new Error("Commande introuvable.");
+    }
+    const user = state.users.find(
+      (item) => item.id === recurring.userId && item.role === "CLIENT" && !item.deletedAt,
+    );
+    if (!user) {
+      throw new Error("Commande introuvable.");
+    }
+    if (actor.role === "CLIENT") {
+      const sessionUser = state.users.find(
+        (item) =>
+          item.role === "CLIENT" &&
+          !item.deletedAt &&
+          item.email.toLowerCase() === String(actor.email ?? "").toLowerCase(),
+      );
+      if (!sessionUser || sessionUser.id !== user.id) {
+        throw new Error("Acces refuse.");
+      }
+    }
+
+    const existingForDate = state.orders.find(
+      (item) =>
+        item.recurringOrderId === recurring.id &&
+        item.deliveryDate === projected.deliveryDate,
+    );
+    if (existingForDate) {
+      order = existingForDate;
+    } else {
+      const lines: OrderLine[] = recurring.lines
+        .map((line) => {
+          const product = state.products.find((item) => item.id === line.productId);
+          if (!product || line.quantity <= 0) {
+            return null;
+          }
+          const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
+          const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
+          return {
+            productId: product.id,
+            productName: product.name,
+            quantity: line.quantity,
+            unitPriceHt: finalUnitHt,
+            unitPriceTtc: unitTtc,
+            tvaRate: product.tvaRate,
+            lineTotalHt: roundToCents(finalUnitHt * line.quantity),
+            lineTotalTtc: roundToCents(unitTtc * line.quantity),
+            lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, line.quantity),
+            lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
+          } satisfies OrderLine;
+        })
+        .filter((line): line is OrderLine => line !== null);
+      if (!lines.length) {
+        throw new Error("Commande introuvable.");
+      }
+      const totalHt = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalHt, 0));
+      const totalTtc = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
+      const totalTva = roundToCents(totalTtc - totalHt);
+      const createdAt = nowIso();
+      const orderIdReal = id("ord");
+      const paymentId = id("pay");
+      const invoiceIndex = state.orders.length + 1;
+
+      state.payments.push({
+        id: paymentId,
+        orderId: orderIdReal,
+        method: recurring.paymentMethod ?? "CARD",
+        amountTtc: totalTtc,
+        status: "FAILED",
+        transactionRef: `CANCELLED-${Date.now()}`,
+        createdAt,
+      });
+
+      order = {
+        id: orderIdReal,
+        userId: user.id,
+        clientCompany: user.companyName,
+        clientEmail: user.email,
+        status: "ANNULEE",
+        deliveryDate: projected.deliveryDate,
+        deliveryAddress: recurring.deliveryAddress || user.address || "Adresse non precisee",
+        createdAt,
+        lines,
+        totalHt,
+        totalTva,
+        totalTtc,
+        paymentId,
+        invoiceNumber: `FAC-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
+        deliveryNoteNumber: `BL-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
+        receptionConfirmed: false,
+        recurrence: recurring.frequency,
+        recurringOrderId: recurring.id,
+        cancellationReason: actor.role === "ADMIN" ? "ADMIN_CANCELLED" : "CLIENT_CANCELLED",
+      };
+      state.orders.push(order);
+      await persistSharedState();
+      return order;
+    }
+  }
+
   if (!order) {
     throw new Error("Commande introuvable.");
   }

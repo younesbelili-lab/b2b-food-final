@@ -1641,7 +1641,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                       type="button"
                       onClick={() => void cancelOrder(order.id)}
                       disabled={
-                        isProjectedRecurringOrder ||
                         processingOrderId === order.id ||
                         order.status === "ANNULEE"
                       }
