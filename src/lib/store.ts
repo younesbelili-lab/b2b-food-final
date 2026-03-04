@@ -125,6 +125,7 @@ type CheckoutInput = {
   deliveryDate: string;
   deliveryAddress: string;
   recurrence?: OrderRecurrence;
+  recurringOrderId?: string;
 };
 
 type AppState = {
@@ -963,6 +964,7 @@ export async function createCheckout(input: CheckoutInput): Promise<Order > {
     deliveryNoteNumber: `BL-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
     receptionConfirmed: false,
     recurrence: input.recurrence ?? "NONE",
+    recurringOrderId: input.recurringOrderId,
   };
 
   state.payments.push(payment);
@@ -1955,6 +1957,22 @@ export async function updateOrder(
         futureOrder.deliveryAddress = recurring.deliveryAddress;
       }
     }
+  }
+
+  if (order.recurrence !== "NONE" && !order.recurringOrderId) {
+    const frequency = order.recurrence as RecurringOrder["frequency"];
+    const recurring = await createRecurringOrder({
+      userId: order.userId,
+      frequency,
+      nextRunAt: getNextRunAt(isoDateToRunAt(order.deliveryDate), frequency),
+      deliveryAddress: order.deliveryAddress,
+      paymentMethod: state.payments.find((item) => item.id === order.paymentId)?.method,
+      lines: order.lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+      })),
+    });
+    order.recurringOrderId = recurring.id;
   }
 
   await persistSharedState();

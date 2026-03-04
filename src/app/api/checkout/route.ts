@@ -4,8 +4,24 @@ import {
   createRecurringOrder,
   createCheckout,
   ensureClientUserByEmail,
+  type OrderRecurrence,
   type PaymentMethod,
 } from "@/lib/store";
+
+function nextRunAtFromDelivery(deliveryDate: string, recurrence: Exclude<OrderRecurrence, "NONE">) {
+  const runAt = new Date(`${deliveryDate}T08:00:00.000Z`);
+  if (Number.isNaN(runAt.getTime())) {
+    return new Date().toISOString();
+  }
+  if (recurrence === "DAILY") {
+    runAt.setUTCDate(runAt.getUTCDate() + 1);
+  } else if (recurrence === "WEEKLY") {
+    runAt.setUTCDate(runAt.getUTCDate() + 7);
+  } else {
+    runAt.setUTCMonth(runAt.getUTCMonth() + 1);
+  }
+  return runAt.toISOString();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +51,19 @@ export async function POST(request: NextRequest) {
         ? body.recurringFrequency
         : "NONE";
 
+    let recurringOrderId: string | undefined;
+    if (recurringFrequency !== "NONE") {
+      const recurring = await createRecurringOrder({
+        userId: user.id,
+        frequency: recurringFrequency,
+        nextRunAt: nextRunAtFromDelivery(body.deliveryDate, recurringFrequency),
+        deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
+        paymentMethod,
+        lines: body.lines ?? [],
+      });
+      recurringOrderId = recurring.id;
+    }
+
     const order = await createCheckout({
       userId: user.id,
       lines: body.lines ?? [],
@@ -42,18 +71,8 @@ export async function POST(request: NextRequest) {
       deliveryDate: body.deliveryDate,
       deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
       recurrence: recurringFrequency,
+      recurringOrderId,
     });
-
-    if (recurringFrequency !== "NONE") {
-      await createRecurringOrder({
-        userId: user.id,
-        frequency: recurringFrequency,
-        nextRunAt: `${body.deliveryDate}T08:00:00.000Z`,
-        deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
-        paymentMethod,
-        lines: body.lines ?? [],
-      });
-    }
 
     return NextResponse.json({ order });
   } catch (error) {
