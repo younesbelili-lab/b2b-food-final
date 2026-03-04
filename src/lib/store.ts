@@ -1,9 +1,9 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
-import { createClient, sql } from "@vercel/postgres";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { Client, Pool, type QueryResultRow } from "pg";
 import {
   marginEuro,
   marginPercent,
@@ -49,7 +49,8 @@ export type OrderStatus =
   | "EN_LIVRAISON"
   | "LIVREE"
   | "CONFIRMEE"
-  | "REMBOURSEE";
+  | "REMBOURSEE"
+  | "ANNULEE";
 
 export type OrderLine = {
   productId: string;
@@ -67,6 +68,8 @@ export type OrderLine = {
 export type Order = {
   id: string;
   userId: string;
+  clientCompany?: string;
+  clientEmail?: string;
   status: OrderStatus;
   deliveryDate: string;
   deliveryAddress: string;
@@ -96,6 +99,8 @@ export type RecurringOrder = {
   frequency: "DAILY" | "WEEKLY" | "MONTHLY";
   active: boolean;
   nextRunAt: string;
+  deliveryAddress?: string;
+  paymentMethod?: PaymentMethod;
   lines: Array<{ productId: string; quantity: number }>;
 };
 
@@ -161,6 +166,7 @@ let dbSchemaReady: Promise<void> | null = null;
 let lastDatabaseReadFailed = false;
 let forceDirectClient = false;
 let disableDatabaseForRuntime = false;
+let pooledClient: Pool | null = null;
 
 function getDatabaseConnectionString() {
   return (
@@ -200,17 +206,47 @@ function isInvalidConnectionStringError(error: unknown) {
     "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
   return (
     maybeCode === "invalid_connection_string" ||
+    maybeCode === "ENOTFOUND" ||
+    maybeCode === "ECONNREFUSED" ||
+    maybeMessage.toLowerCase().includes("connection string") ||
     maybeMessage.toLowerCase().includes("direct connection")
   );
 }
 
-async function runDbQuery<T>(
+function compileDbQuery(strings: TemplateStringsArray, values: QueryPrimitive[]) {
+  let text = "";
+  for (let index = 0; index < strings.length; index += 1) {
+    text += strings[index];
+    if (index < values.length) {
+      text += `$${index + 1}`;
+    }
+  }
+  return { text, values };
+}
+
+function getOrCreatePool(connectionString: string) {
+  if (pooledClient) {
+    return pooledClient;
+  }
+  pooledClient = new Pool({ connectionString });
+  return pooledClient;
+}
+
+async function runDbQuery<T extends QueryResultRow>(
   strings: TemplateStringsArray,
   ...values: QueryPrimitive[]
 ): Promise<{ rows: T[] }> {
+  const query = compileDbQuery(strings, values);
+
   if (!forceDirectClient) {
     try {
-      return (await sql(strings, ...values)) as unknown as { rows: T[] };
+      const pooledConnection = getDatabaseConnectionString() || getDirectDatabaseConnectionString();
+      if (!pooledConnection) {
+        throw new Error("Missing database connection string.");
+      }
+      const pool = getOrCreatePool(pooledConnection);
+      const result = await pool.query(query.text, query.values);
+      return { rows: result.rows as T[] };
     } catch (error) {
       if (!isInvalidConnectionStringError(error)) {
         throw error;
@@ -226,10 +262,11 @@ async function runDbQuery<T>(
   if (!connectionString) {
     throw new Error("Missing database connection string.");
   }
-  const client = createClient({ connectionString });
+  const client = new Client({ connectionString });
   await client.connect();
   try {
-    return (await client.sql(strings, ...values)) as unknown as { rows: T[] };
+    const result = await client.query(query.text, query.values);
+    return { rows: result.rows as T[] };
   } catch (error) {
     if (isInvalidConnectionStringError(error)) {
       disableDatabaseForRuntime = true;
@@ -294,7 +331,7 @@ async function readDatabaseState(): Promise<PersistedDbState | null> {
     if (isInvalidConnectionStringError(error)) {
       disableDatabaseForRuntime = true;
       lastDatabaseReadFailed = false;
-      console.warn("Database connection string is not compatible with @vercel/postgres. Falling back to file storage.");
+      console.warn("Database connection string is not compatible with postgres runtime. Falling back to file storage.");
       return null;
     }
     lastDatabaseReadFailed = true;
@@ -500,6 +537,7 @@ async function syncSharedStateFromDisk() {
     if (dbState.runtime) {
       applyRuntimeSnapshot(dbState.runtime);
     }
+    await materializeRecurringOrders();
     return;
   }
   if (isDatabaseEnabled() && lastDatabaseReadFailed) {
@@ -519,6 +557,8 @@ async function syncSharedStateFromDisk() {
   if (runtime) {
     applyRuntimeSnapshot(runtime);
   }
+
+  await materializeRecurringOrders();
 
   if (isDatabaseEnabled()) {
     try {
@@ -567,6 +607,10 @@ function clientIdFromEmail(email: string): string {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function isOrderTerminal(status: OrderStatus) {
+  return status === "LIVREE" || status === "CONFIRMEE" || status === "REMBOURSEE" || status === "ANNULEE";
 }
 
 function defaultImageForCategory(category: Product["category"]) {
@@ -892,9 +936,12 @@ export async function createCheckout(input: CheckoutInput): Promise<Order > {
   await persistSharedState();
 
   const invoiceIndex = state.orders.length + 1;
+  const clientUser = state.users.find((item) => item.id === input.userId);
   const order: Order = {
     id: orderId,
     userId: input.userId,
+    clientCompany: clientUser?.companyName,
+    clientEmail: clientUser?.email,
     status: "A_PREPARER",
     deliveryDate: input.deliveryDate,
     deliveryAddress: input.deliveryAddress.trim(),
@@ -919,15 +966,22 @@ export async function createRecurringOrder(input: {
   userId: string;
   frequency: RecurringOrder["frequency"];
   nextRunAt: string;
+  deliveryAddress?: string;
+  paymentMethod?: PaymentMethod;
   lines: Array<{ productId: string; quantity: number }>;
 }): Promise<RecurringOrder> {
   await syncSharedStateFromDisk();
+  if (!Array.isArray(input.lines) || input.lines.length === 0) {
+    throw new Error("La recurrence doit contenir au moins un article.");
+  }
   const recurring: RecurringOrder = {
     id: id("rec"),
     userId: input.userId,
     frequency: input.frequency,
     active: true,
     nextRunAt: input.nextRunAt,
+    deliveryAddress: input.deliveryAddress?.trim() || undefined,
+    paymentMethod: input.paymentMethod,
     lines: input.lines,
   };
   state.recurringOrders.push(recurring);
@@ -954,6 +1008,156 @@ export async function setRecurringOrderStatus(recurringId: string, active: boole
   recurring.active = active;
   await persistSharedState();
   return recurring;
+}
+
+function getNextRunAt(currentRunAt: string, frequency: RecurringOrder["frequency"]) {
+  const value = new Date(currentRunAt);
+  if (Number.isNaN(value.getTime())) {
+    return nowIso();
+  }
+  if (frequency === "DAILY") {
+    value.setUTCDate(value.getUTCDate() + 1);
+  } else if (frequency === "WEEKLY") {
+    value.setUTCDate(value.getUTCDate() + 7);
+  } else {
+    value.setUTCMonth(value.getUTCMonth() + 1);
+  }
+  return value.toISOString();
+}
+
+function getNextAllowedDeliveryDate(now = new Date()) {
+  const cutoff = new Date(now);
+  cutoff.setHours(19, 0, 0, 0);
+  const plusDays = now <= cutoff ? 1 : 2;
+  const delivery = new Date(now);
+  delivery.setDate(now.getDate() + plusDays);
+  return delivery.toISOString().split("T")[0];
+}
+
+async function materializeRecurringOrders() {
+  const now = Date.now();
+  let hasChanges = false;
+
+  for (const recurring of state.recurringOrders) {
+    if (!recurring.active) {
+      continue;
+    }
+    const user = state.users.find(
+      (item) => item.id === recurring.userId && item.role === "CLIENT" && !item.deletedAt,
+    );
+    if (!user) {
+      recurring.active = false;
+      hasChanges = true;
+      continue;
+    }
+
+    let guard = 0;
+    while (guard < 24) {
+      guard += 1;
+      const runAt = new Date(recurring.nextRunAt);
+      if (Number.isNaN(runAt.getTime()) || runAt.getTime() > now) {
+        break;
+      }
+
+      const runDate = runAt.toISOString().split("T")[0];
+      const deliveryDate = isDeliveryDateAllowed(runDate) ? runDate : getNextAllowedDeliveryDate();
+      try {
+        if (!recurring.lines.length) {
+          throw new Error("Recurrence vide");
+        }
+
+        const lines: OrderLine[] = recurring.lines.map((line) => {
+          const product = state.products.find((item) => item.id === line.productId);
+          if (!product) {
+            throw new Error(`Produit introuvable: ${line.productId}`);
+          }
+          if (line.quantity <= 0) {
+            throw new Error("Quantite invalide.");
+          }
+          if (product.stock < line.quantity) {
+            throw new Error(`Stock insuffisant pour ${product.name}.`);
+          }
+
+          const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
+          const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
+          return {
+            productId: product.id,
+            productName: product.name,
+            quantity: line.quantity,
+            unitPriceHt: finalUnitHt,
+            unitPriceTtc: unitTtc,
+            tvaRate: product.tvaRate,
+            lineTotalHt: roundToCents(finalUnitHt * line.quantity),
+            lineTotalTtc: roundToCents(unitTtc * line.quantity),
+            lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, line.quantity),
+            lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
+          } satisfies OrderLine;
+        });
+
+        const totalHt = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalHt, 0));
+        const totalTtc = roundToCents(lines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
+        const totalTva = roundToCents(totalTtc - totalHt);
+        const orderId = id("ord");
+        const paymentId = id("pay");
+        const createdAt = nowIso();
+
+        for (const line of lines) {
+          const product = state.products.find((item) => item.id === line.productId);
+          if (!product) {
+            continue;
+          }
+          product.stock -= line.quantity;
+          state.stockMovements.push({
+            id: id("stm"),
+            productId: product.id,
+            change: -line.quantity,
+            reason: "ORDER_CONFIRMED",
+            relatedOrderId: orderId,
+            createdAt,
+          });
+        }
+
+        const invoiceIndex = state.orders.length + 1;
+        state.payments.push({
+          id: paymentId,
+          orderId,
+          method: recurring.paymentMethod ?? "CARD",
+          amountTtc: totalTtc,
+          status: "PAID",
+          transactionRef: `AUTO-${Date.now()}`,
+          createdAt,
+        });
+        state.orders.push({
+          id: orderId,
+          userId: user.id,
+          clientCompany: user.companyName,
+          clientEmail: user.email,
+          status: "A_PREPARER",
+          deliveryDate,
+          deliveryAddress: recurring.deliveryAddress || user.address || "Adresse non precisee",
+          createdAt,
+          lines,
+          totalHt,
+          totalTva,
+          totalTtc,
+          paymentId,
+          invoiceNumber: `FAC-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
+          deliveryNoteNumber: `BL-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
+          receptionConfirmed: false,
+        });
+        hasChanges = true;
+      } catch {
+        // If one scheduled run fails, still advance to avoid infinite loops.
+      }
+
+      recurring.nextRunAt = getNextRunAt(recurring.nextRunAt, recurring.frequency);
+      hasChanges = true;
+    }
+  }
+
+  if (hasChanges) {
+    await persistSharedState();
+  }
 }
 
 export async function createTicket(input: {
@@ -1107,6 +1311,9 @@ export async function listDeletedClientUsers() {
       address: user.address,
       role: user.role,
       deletedAt: user.deletedAt,
+      cancelledOrdersCount: state.orders.filter(
+        (order) => order.userId === user.id && order.status === "ANNULEE",
+      ).length,
     }));
 }
 
@@ -1263,15 +1470,132 @@ export async function deleteClientUser(userId: string): Promise<User > {
   }
   if (!user.deletedAt) {
     user.deletedAt = nowIso();
+    for (const order of state.orders) {
+      if (order.userId === userId && !isOrderTerminal(order.status)) {
+        order.status = "ANNULEE";
+      }
+    }
+    for (const recurring of state.recurringOrders) {
+      if (recurring.userId === userId) {
+        recurring.active = false;
+      }
+    }
     await persistSharedState();
   }
   return user;
 }
 
+export async function restoreClientUser(userId: string): Promise<User> {
+  await syncSharedStateFromDisk();
+  const user = state.users.find((item) => item.id === userId);
+  if (!user || user.role !== "CLIENT") {
+    throw new Error("Client introuvable.");
+  }
+  if (user.deletedAt) {
+    delete user.deletedAt;
+    await persistSharedState();
+  }
+  return user;
+}
+
+export async function cancelOrder(
+  orderId: string,
+  actor: { role: "ADMIN" | "CLIENT"; email?: string },
+): Promise<Order> {
+  await syncSharedStateFromDisk();
+  const order = state.orders.find((item) => item.id === orderId);
+  if (!order) {
+    throw new Error("Commande introuvable.");
+  }
+  if (actor.role === "CLIENT") {
+    const user = state.users.find(
+      (item) =>
+        item.role === "CLIENT" &&
+        !item.deletedAt &&
+        item.email.toLowerCase() === String(actor.email ?? "").toLowerCase(),
+    );
+    if (!user || user.id !== order.userId) {
+      throw new Error("Acces refuse.");
+    }
+  }
+
+  if (order.status === "ANNULEE") {
+    return order;
+  }
+
+  if (!isOrderTerminal(order.status)) {
+    for (const line of order.lines) {
+      const product = state.products.find((item) => item.id === line.productId);
+      if (!product) {
+        continue;
+      }
+      product.stock += line.quantity;
+      state.stockMovements.push({
+        id: id("stm"),
+        productId: product.id,
+        change: line.quantity,
+        reason: "MANUAL_ADJUSTMENT",
+        relatedOrderId: order.id,
+        createdAt: nowIso(),
+      });
+    }
+  }
+
+  order.status = "ANNULEE";
+  await persistSharedState();
+  return order;
+}
+
+export async function updateOrder(
+  orderId: string,
+  actor: { role: "ADMIN" | "CLIENT"; email?: string },
+  payload: {
+    deliveryDate?: string;
+    deliveryAddress?: string;
+  },
+): Promise<Order> {
+  await syncSharedStateFromDisk();
+  const order = state.orders.find((item) => item.id === orderId);
+  if (!order) {
+    throw new Error("Commande introuvable.");
+  }
+  if (actor.role === "CLIENT") {
+    const user = state.users.find(
+      (item) =>
+        item.role === "CLIENT" &&
+        !item.deletedAt &&
+        item.email.toLowerCase() === String(actor.email ?? "").toLowerCase(),
+    );
+    if (!user || user.id !== order.userId) {
+      throw new Error("Acces refuse.");
+    }
+  }
+  if (isOrderTerminal(order.status)) {
+    throw new Error("Cette commande ne peut plus etre modifiee.");
+  }
+
+  if (typeof payload.deliveryDate === "string" && payload.deliveryDate) {
+    if (!isDeliveryDateAllowed(payload.deliveryDate)) {
+      throw new Error("La date de livraison ne respecte pas la regle J+1/J+2.");
+    }
+    order.deliveryDate = payload.deliveryDate;
+  }
+  if (typeof payload.deliveryAddress === "string") {
+    const nextAddress = payload.deliveryAddress.trim();
+    if (!nextAddress) {
+      throw new Error("L'adresse de livraison est obligatoire.");
+    }
+    order.deliveryAddress = nextAddress;
+  }
+
+  await persistSharedState();
+  return order;
+}
+
 export async function clientOverview(userId: string) {
   await syncSharedStateFromDisk();
   const orders = await listOrdersByUser(userId);
-  const completedStatuses: OrderStatus[] = ["LIVREE", "CONFIRMEE", "REMBOURSEE"];
+  const completedStatuses: OrderStatus[] = ["LIVREE", "CONFIRMEE", "REMBOURSEE", "ANNULEE"];
 
   const ongoingOrders = orders.filter(
     (order) => !completedStatuses.includes(order.status),

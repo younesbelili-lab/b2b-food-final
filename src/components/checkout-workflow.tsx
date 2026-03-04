@@ -43,6 +43,7 @@ const paymentMethods = [
 ] as const;
 
 const frequencies = [
+  { value: "NONE", label: "Aucune recurrence" },
   { value: "DAILY", label: "Quotidienne" },
   { value: "WEEKLY", label: "Hebdomadaire" },
   { value: "MONTHLY", label: "Mensuelle" },
@@ -79,11 +80,10 @@ export function CheckoutWorkflow() {
   const [deliveryDate, setDeliveryDate] = useState(getMinDeliveryDateIso());
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentMethods)[number]["value"]>("CARD");
-  const [recurringFrequency, setRecurringFrequency] = useState<(typeof frequencies)[number]["value"]>("WEEKLY");
+  const [recurringFrequency, setRecurringFrequency] = useState<(typeof frequencies)[number]["value"]>("NONE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<CheckoutOrder | null>(null);
-  const [recurringInfo, setRecurringInfo] = useState("");
   const [overview, setOverview] = useState<ClientOverview | null>(null);
   const [cartLoaded, setCartLoaded] = useState(false);
 
@@ -172,6 +172,7 @@ export function CheckoutWorkflow() {
           paymentMethod,
           deliveryDate,
           deliveryAddress,
+          recurringFrequency,
         }),
       });
       const data = await response.json();
@@ -194,29 +195,6 @@ export function CheckoutWorkflow() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function createRecurring() {
-    setRecurringInfo("");
-    const nextRunAt = `${deliveryDate}T08:00:00.000Z`;
-    const response = await fetch("/api/recurring-orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        frequency: recurringFrequency,
-        nextRunAt,
-        lines: cartLines.map((line) => ({
-          productId: line.productId,
-          quantity: line.quantity,
-        })),
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setRecurringInfo(data.error ?? "Erreur recurrence.");
-      return;
-    }
-    setRecurringInfo(`Commande recurrente creee: ${data.item.id}`);
   }
 
   return (
@@ -399,7 +377,7 @@ export function CheckoutWorkflow() {
         </button>
 
         <div className="mt-6 border-t border-slate-200 pt-4">
-          <h3 className="font-semibold">Commande recurrente</h3>
+          <h3 className="font-semibold">Frequence de commande</h3>
           <div className="mt-2 flex flex-wrap gap-3">
             <select
               value={recurringFrequency}
@@ -416,16 +394,10 @@ export function CheckoutWorkflow() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={createRecurring}
-              disabled={cartLines.length === 0}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
-            >
-              Enregistrer recurrence
-            </button>
           </div>
-          {recurringInfo && <p className="mt-2 text-sm text-slate-600">{recurringInfo}</p>}
+          <p className="mt-2 text-sm text-slate-600">
+            La recurrence est enregistree automatiquement au paiement.
+          </p>
         </div>
 
         {error && (

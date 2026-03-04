@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 
   if (session.role === "ADMIN") {
     const ordersSource = (await listAllOrders())
+      .filter((order) => order.status !== "ANNULEE")
       .slice()
       .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
     const orders = [];
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
       const user = await getUserById(order.userId);
       orders.push({
         ...order,
-        clientCompany: user?.companyName ?? "Client inconnu",
-        clientEmail: user?.email ?? "",
+        clientCompany: user?.companyName ?? order.clientCompany ?? "Client inconnu",
+        clientEmail: user?.email ?? order.clientEmail ?? "",
       });
     }
     const recurringSource = await listAllRecurringOrders();

@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       frequency: body.frequency,
       nextRunAt: body.nextRunAt,
+      deliveryAddress: body.deliveryAddress,
+      paymentMethod: body.paymentMethod,
       lines: body.lines ?? [],
     });
     return NextResponse.json({ item: recurring }, { status: 201 });

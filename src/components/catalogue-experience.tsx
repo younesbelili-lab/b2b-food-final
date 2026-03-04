@@ -65,6 +65,7 @@ type AdminClient = {
   address: string;
   role: "CLIENT";
   deletedAt?: string;
+  cancelledOrdersCount?: number;
 };
 
 type AdminClientProfile = {
@@ -205,6 +206,10 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [orderClientSearch, setOrderClientSearch] = useState("");
   const [clientsTab, setClientsTab] = useState<"active" | "deleted">("active");
   const [processingClientId, setProcessingClientId] = useState<string | null>(null);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editDeliveryDate, setEditDeliveryDate] = useState("");
+  const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
 
   async function reloadProducts() {
     try {
@@ -676,8 +681,89 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
         setSelectedClientProfile(null);
       }
       await reloadAdminClients();
+      await reloadOrders();
     } finally {
       setProcessingClientId(null);
+    }
+  }
+
+  async function restoreClient(clientId: string) {
+    setClientProfileError("");
+    setProcessingClientId(clientId);
+    try {
+      const response = await fetch(`/api/admin/clients/${clientId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setClientProfileError(data.error ?? "Erreur restauration client.");
+        return;
+      }
+      await reloadAdminClients();
+      await reloadOrders();
+      setClientsTab("active");
+    } finally {
+      setProcessingClientId(null);
+    }
+  }
+
+  function startOrderEdit(order: ClientOrder) {
+    setEditingOrderId(order.id);
+    setEditDeliveryDate(order.deliveryDate);
+    setEditDeliveryAddress(order.deliveryAddress ?? "");
+  }
+
+  async function saveOrderEdit(orderId: string) {
+    setHistoryError("");
+    setProcessingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateOrder",
+          deliveryDate: editDeliveryDate,
+          deliveryAddress: editDeliveryAddress,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setHistoryError(data.error ?? "Erreur modification commande.");
+        return;
+      }
+      setEditingOrderId(null);
+      await reloadOrders();
+    } finally {
+      setProcessingOrderId(null);
+    }
+  }
+
+  async function cancelOrder(orderId: string) {
+    setHistoryError("");
+    setProcessingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setHistoryError(data.error ?? "Erreur annulation commande.");
+        return;
+      }
+      if (editingOrderId === orderId) {
+        setEditingOrderId(null);
+      }
+      await reloadOrders();
+      if (sessionRole === "ADMIN") {
+        await reloadAdminClients();
+      }
+    } finally {
+      setProcessingOrderId(null);
     }
   }
 
@@ -1052,6 +1138,17 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                     <p className="text-xs text-slate-500">
                       Supprime le: {client.deletedAt ? new Date(client.deletedAt).toLocaleString("fr-FR") : "-"}
                     </p>
+                    <p className="text-xs text-slate-500">
+                      Commandes annulees: {client.cancelledOrdersCount ?? 0}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void restoreClient(client.id)}
+                      disabled={processingClientId === client.id}
+                      className="mt-2 rounded-md border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:text-slate-400"
+                    >
+                      {processingClientId === client.id ? "Restauration..." : "Desupprimer"}
+                    </button>
                   </div>
                 ))}
               {clientsTab === "active" && filteredAdminClients.length === 0 && (
@@ -1391,12 +1488,70 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                       </tbody>
                     </table>
                   </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startOrderEdit(order)}
+                      disabled={processingOrderId === order.id || order.status === "ANNULEE"}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold disabled:text-slate-400"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void cancelOrder(order.id)}
+                      disabled={processingOrderId === order.id || order.status === "ANNULEE"}
+                      className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:text-slate-400"
+                    >
+                      {processingOrderId === order.id ? "Traitement..." : "Supprimer / Annuler"}
+                    </button>
+                  </div>
+                  {editingOrderId === order.id && (
+                    <div className="mt-3 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                      <label className="font-medium text-slate-700">
+                        Nouvelle date de livraison
+                        <input
+                          type="date"
+                          value={editDeliveryDate}
+                          onChange={(event) => setEditDeliveryDate(event.target.value)}
+                          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                        />
+                      </label>
+                      <label className="font-medium text-slate-700">
+                        Nouvelle adresse de livraison
+                        <textarea
+                          rows={2}
+                          value={editDeliveryAddress}
+                          onChange={(event) => setEditDeliveryAddress(event.target.value)}
+                          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void saveOrderEdit(order.id)}
+                          disabled={processingOrderId === order.id}
+                          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:bg-slate-400"
+                        >
+                          Enregistrer modification
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrderId(null)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </article>
               ))}
               {filteredOrders.length === 0 && (
                 <p className="text-sm text-slate-600">Aucune commande pour le moment.</p>
               )}
 
+              {sessionRole !== "ADMIN" && (
               <div className="pt-2">
                 <h3 className="text-lg font-semibold">Commandes programmees</h3>
                 <div className="mt-3 space-y-3">
@@ -1408,11 +1563,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                           {item.active ? "Active" : "Suspendue"}
                         </p>
                       </div>
-                      {sessionRole === "ADMIN" && (
-                        <p className="mt-1 text-sm text-slate-600">
-                          Client: {item.clientCompany ?? "Client inconnu"}
-                        </p>
-                      )}
                       <p className="mt-1 text-sm text-slate-600">
                         Frequence: {item.frequency} | Prochaine execution: {item.nextRunAt}
                       </p>
@@ -1446,6 +1596,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                   )}
                 </div>
               </div>
+              )}
             </div>
           )}
         </section>

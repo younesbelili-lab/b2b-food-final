@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookieName, verifySessionToken } from "@/lib/auth";
 import {
+  createRecurringOrder,
   createCheckout,
   ensureClientUserByEmail,
   type PaymentMethod,
@@ -34,6 +35,24 @@ export async function POST(request: NextRequest) {
       deliveryDate: body.deliveryDate,
       deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
     });
+
+    const recurringFrequency =
+      body.recurringFrequency === "DAILY" ||
+      body.recurringFrequency === "WEEKLY" ||
+      body.recurringFrequency === "MONTHLY"
+        ? body.recurringFrequency
+        : "NONE";
+
+    if (recurringFrequency !== "NONE") {
+      await createRecurringOrder({
+        userId: user.id,
+        frequency: recurringFrequency,
+        nextRunAt: `${body.deliveryDate}T08:00:00.000Z`,
+        deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
+        paymentMethod,
+        lines: body.lines ?? [],
+      });
+    }
 
     return NextResponse.json({ order });
   } catch (error) {
