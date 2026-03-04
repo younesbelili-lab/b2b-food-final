@@ -1,6 +1,6 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
-import { createClient, sql, type QueryResultRow } from "@vercel/postgres";
+import { createClient, sql } from "@vercel/postgres";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -176,13 +176,13 @@ function isInvalidConnectionStringError(error: unknown) {
   );
 }
 
-async function runDbQuery<T extends QueryResultRow>(
+async function runDbQuery<T>(
   strings: TemplateStringsArray,
   ...values: unknown[]
 ): Promise<{ rows: T[] }> {
   if (!forceDirectClient) {
     try {
-      return await sql<T>(strings, ...values);
+      return (await sql(strings, ...values)) as { rows: T[] };
     } catch (error) {
       if (!isInvalidConnectionStringError(error)) {
         throw error;
@@ -201,7 +201,7 @@ async function runDbQuery<T extends QueryResultRow>(
   const client = createClient({ connectionString });
   await client.connect();
   try {
-    return await client.sql<T>(strings, ...values);
+    return (await client.sql(strings, ...values)) as { rows: T[] };
   } finally {
     await client.end();
   }
