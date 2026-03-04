@@ -1,6 +1,6 @@
 import { products as seedProducts } from "@/data/products";
 import { isDeliveryDateAllowed } from "@/lib/delivery";
-import { sql } from "@vercel/postgres";
+import { createClient, sql } from "@vercel/postgres";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -157,9 +157,54 @@ type PersistedDbState = {
 
 let dbSchemaReady: Promise<void> | null = null;
 let lastDatabaseReadFailed = false;
+let forceDirectClient = false;
 
 function isDatabaseEnabled() {
   return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+}
+
+function isInvalidConnectionStringError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const maybeCode = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  const maybeMessage =
+    "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
+  return (
+    maybeCode === "invalid_connection_string" ||
+    maybeMessage.toLowerCase().includes("direct connection")
+  );
+}
+
+async function runDbQuery<T>(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<{ rows: T[] }> {
+  if (!forceDirectClient) {
+    try {
+      return await sql<T>(strings, ...values);
+    } catch (error) {
+      if (!isInvalidConnectionStringError(error)) {
+        throw error;
+      }
+      forceDirectClient = true;
+      console.warn(
+        "Pooled query unavailable, falling back to direct postgres client for this runtime.",
+      );
+    }
+  }
+
+  const connectionString = process.env.POSTGRES_URL ?? process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("Missing database connection string.");
+  }
+  const client = createClient({ connectionString });
+  await client.connect();
+  try {
+    return await client.sql<T>(strings, ...values);
+  } finally {
+    await client.end();
+  }
 }
 
 export function getStorageStatus() {
@@ -182,7 +227,7 @@ async function ensureDbSchema() {
   }
   if (!dbSchemaReady) {
     dbSchemaReady = (async () => {
-      await sql`
+      await runDbQuery`
         CREATE TABLE IF NOT EXISTS app_state (
           key TEXT PRIMARY KEY,
           data JSONB NOT NULL,
@@ -202,7 +247,7 @@ async function readDatabaseState(): Promise<PersistedDbState | null> {
   try {
     lastDatabaseReadFailed = false;
     await ensureDbSchema();
-    const result = await sql<{ data: PersistedDbState }>`
+    const result = await runDbQuery<{ data: PersistedDbState }>`
       SELECT data
       FROM app_state
       WHERE key = ${DB_STATE_KEY}
@@ -225,7 +270,7 @@ async function persistDatabaseState(snapshot: PersistedDbState) {
   }
   await ensureDbSchema();
   const json = JSON.stringify(snapshot);
-  await sql`
+  await runDbQuery`
     INSERT INTO app_state (key, data, updated_at)
     VALUES (${DB_STATE_KEY}, ${json}::jsonb, NOW())
     ON CONFLICT (key)
