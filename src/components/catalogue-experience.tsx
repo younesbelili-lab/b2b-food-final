@@ -40,6 +40,8 @@ type ClientOrder = {
   createdAt: string;
   deliveryDate: string;
   deliveryAddress?: string;
+  recurrence?: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY";
+  recurringOrderId?: string;
   totalTtc: number;
   lines: ClientOrderLine[];
   clientCompany?: string;
@@ -82,6 +84,8 @@ type AdminClientProfile = {
     deliveryDate: string;
     deliveryAddress: string;
     status: string;
+    recurrence?: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY";
+    recurringOrderId?: string;
     totalTtc: number;
     lines: Array<{
       productId: string;
@@ -133,6 +137,19 @@ function fallbackImageForCategory(category: CatalogueProduct["category"]) {
     return "/products/steak-hache.svg";
   }
   return "/products/eau-minerale.svg";
+}
+
+function recurrenceLabel(value?: "NONE" | "DAILY" | "WEEKLY" | "MONTHLY") {
+  if (!value || value === "NONE") {
+    return "Sans recurrence";
+  }
+  if (value === "DAILY") {
+    return "Quotidienne";
+  }
+  if (value === "WEEKLY") {
+    return "Hebdomadaire";
+  }
+  return "Mensuelle";
 }
 
 function normalizeProduct(input: Partial<CatalogueProduct>): CatalogueProduct | null {
@@ -210,6 +227,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editDeliveryDate, setEditDeliveryDate] = useState("");
   const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
+  const [editLines, setEditLines] = useState<Array<{ productId: string; quantity: number }>>([]);
+  const [newEditLineProductId, setNewEditLineProductId] = useState("");
+  const [newEditLineQuantity, setNewEditLineQuantity] = useState(1);
 
   async function reloadProducts() {
     try {
@@ -512,6 +532,11 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       );
   }, [productsState, selectedLines]);
 
+  const editableAddableProducts = useMemo(() => {
+    const usedProductIds = new Set(editLines.map((line) => line.productId));
+    return productsState.filter((product) => !usedProductIds.has(product.id));
+  }, [editLines, productsState]);
+
   function updateQuantity(productId: string, value: number) {
     setQuantities((prev) => ({
       ...prev,
@@ -714,6 +739,37 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
     setEditingOrderId(order.id);
     setEditDeliveryDate(order.deliveryDate);
     setEditDeliveryAddress(order.deliveryAddress ?? "");
+    setEditLines(order.lines.map((line) => ({ productId: line.productId, quantity: line.quantity })));
+    setNewEditLineProductId("");
+    setNewEditLineQuantity(1);
+  }
+
+  function updateEditLineQuantity(productId: string, quantity: number) {
+    setEditLines((prev) =>
+      prev.map((line) =>
+        line.productId === productId
+          ? { ...line, quantity: Math.max(1, Math.floor(Number.isNaN(quantity) ? 1 : quantity)) }
+          : line,
+      ),
+    );
+  }
+
+  function removeEditLine(productId: string) {
+    setEditLines((prev) => prev.filter((line) => line.productId !== productId));
+  }
+
+  function addEditLine() {
+    const productId = newEditLineProductId.trim();
+    const quantity = Math.max(1, Math.floor(newEditLineQuantity));
+    if (!productId) {
+      return;
+    }
+    if (editLines.some((line) => line.productId === productId)) {
+      return;
+    }
+    setEditLines((prev) => [...prev, { productId, quantity }]);
+    setNewEditLineProductId("");
+    setNewEditLineQuantity(1);
   }
 
   async function saveOrderEdit(orderId: string) {
@@ -728,6 +784,10 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
           action: "updateOrder",
           deliveryDate: editDeliveryDate,
           deliveryAddress: editDeliveryAddress,
+          lines: editLines.map((line) => ({
+            productId: line.productId,
+            quantity: line.quantity,
+          })),
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -736,6 +796,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
         return;
       }
       setEditingOrderId(null);
+      setEditLines([]);
       await reloadOrders();
     } finally {
       setProcessingOrderId(null);
@@ -757,6 +818,7 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       }
       if (editingOrderId === orderId) {
         setEditingOrderId(null);
+        setEditLines([]);
       }
       await reloadOrders();
       if (sessionRole === "ADMIN") {
@@ -1196,6 +1258,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                         <p className="text-slate-600">
                           Livraison: {order.deliveryDate} | Adresse: {order.deliveryAddress}
                         </p>
+                        <p className="text-slate-600">
+                          Recurrence: {recurrenceLabel(order.recurrence)}
+                        </p>
                         <div className="mt-2 overflow-hidden rounded-md border border-slate-200">
                           <table className="w-full text-sm">
                             <thead className="bg-slate-100 text-slate-600">
@@ -1463,6 +1528,9 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                   <p className="mt-1 text-sm text-slate-600">
                     Statut: {order.status} | Livraison: {order.deliveryDate}
                   </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Recurrence: {recurrenceLabel(order.recurrence)}
+                  </p>
                   {order.deliveryAddress && (
                     <p className="mt-1 text-sm text-slate-600">
                       Adresse: {order.deliveryAddress}
@@ -1526,6 +1594,77 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
                         />
                       </label>
+                      <div className="rounded-md border border-slate-200 bg-white p-3">
+                        <p className="font-medium text-slate-700">Contenu de la commande</p>
+                        <div className="mt-2 space-y-2">
+                          {editLines.map((line) => {
+                            const product = productsState.find((item) => item.id === line.productId);
+                            return (
+                              <div key={line.productId} className="grid grid-cols-[1fr_110px_auto] gap-2">
+                                <div className="rounded-md border border-slate-200 px-3 py-2 text-xs">
+                                  {product?.name ?? line.productId}
+                                </div>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={line.quantity}
+                                  onChange={(event) =>
+                                    updateEditLineQuantity(
+                                      line.productId,
+                                      Number(event.target.value),
+                                    )
+                                  }
+                                  className="rounded-md border border-slate-300 px-3 py-2 text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditLine(line.productId)}
+                                  className="rounded-md border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-700"
+                                >
+                                  Retirer
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {editLines.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                              Ajoute au moins un article.
+                            </p>
+                          )}
+                        </div>
+                        <div className="mt-3 grid grid-cols-[1fr_110px_auto] gap-2">
+                          <select
+                            value={newEditLineProductId}
+                            onChange={(event) => setNewEditLineProductId(event.target.value)}
+                            className="rounded-md border border-slate-300 px-3 py-2 text-xs"
+                          >
+                            <option value="">Ajouter un article...</option>
+                            {editableAddableProducts.map((product) => (
+                              <option key={product.id} value={product.id}>
+                                {product.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            value={newEditLineQuantity}
+                            onChange={(event) =>
+                              setNewEditLineQuantity(
+                                Math.max(1, Math.floor(Number(event.target.value) || 1)),
+                              )
+                            }
+                            className="rounded-md border border-slate-300 px-3 py-2 text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={addEditLine}
+                            className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold"
+                          >
+                            Ajouter
+                          </button>
+                        </div>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -1537,7 +1676,10 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingOrderId(null)}
+                          onClick={() => {
+                            setEditingOrderId(null);
+                            setEditLines([]);
+                          }}
                           className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
                         >
                           Annuler

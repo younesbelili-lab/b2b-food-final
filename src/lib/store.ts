@@ -65,6 +65,8 @@ export type OrderLine = {
   lineMarginPercent: number;
 };
 
+export type OrderRecurrence = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY";
+
 export type Order = {
   id: string;
   userId: string;
@@ -82,6 +84,8 @@ export type Order = {
   invoiceNumber: string;
   deliveryNoteNumber: string;
   receptionConfirmed: boolean;
+  recurrence: OrderRecurrence;
+  recurringOrderId?: string;
 };
 
 export type StockMovement = {
@@ -119,6 +123,7 @@ type CheckoutInput = {
   paymentMethod: PaymentMethod;
   deliveryDate: string;
   deliveryAddress: string;
+  recurrence?: OrderRecurrence;
 };
 
 type AppState = {
@@ -954,6 +959,7 @@ export async function createCheckout(input: CheckoutInput): Promise<Order > {
     invoiceNumber: `FAC-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
     deliveryNoteNumber: `BL-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
     receptionConfirmed: false,
+    recurrence: input.recurrence ?? "NONE",
   };
 
   state.payments.push(payment);
@@ -1144,6 +1150,8 @@ async function materializeRecurringOrders() {
           invoiceNumber: `FAC-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
           deliveryNoteNumber: `BL-${new Date().getFullYear()}-${String(invoiceIndex).padStart(5, "0")}`,
           receptionConfirmed: false,
+          recurrence: recurring.frequency,
+          recurringOrderId: recurring.id,
         });
         hasChanges = true;
       } catch {
@@ -1552,6 +1560,7 @@ export async function updateOrder(
   payload: {
     deliveryDate?: string;
     deliveryAddress?: string;
+    lines?: Array<{ productId: string; quantity: number }>;
   },
 ): Promise<Order> {
   await syncSharedStateFromDisk();
@@ -1586,6 +1595,107 @@ export async function updateOrder(
       throw new Error("L'adresse de livraison est obligatoire.");
     }
     order.deliveryAddress = nextAddress;
+  }
+  if (Array.isArray(payload.lines)) {
+    if (!payload.lines.length) {
+      throw new Error("La commande doit contenir au moins un article.");
+    }
+
+    const nextQuantities = new Map<string, number>();
+    for (const line of payload.lines) {
+      const productId = String(line.productId ?? "").trim();
+      const quantity = Math.floor(Number(line.quantity));
+      if (!productId) {
+        throw new Error("Produit invalide.");
+      }
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error("Quantite invalide.");
+      }
+      nextQuantities.set(productId, (nextQuantities.get(productId) ?? 0) + quantity);
+    }
+
+    const previousQuantities = new Map<string, number>();
+    for (const line of order.lines) {
+      previousQuantities.set(
+        line.productId,
+        (previousQuantities.get(line.productId) ?? 0) + line.quantity,
+      );
+    }
+
+    const allProductIds = new Set<string>([
+      ...Array.from(previousQuantities.keys()),
+      ...Array.from(nextQuantities.keys()),
+    ]);
+
+    for (const productId of allProductIds) {
+      const product = state.products.find((item) => item.id === productId);
+      const previousQty = previousQuantities.get(productId) ?? 0;
+      const nextQty = nextQuantities.get(productId) ?? 0;
+      const delta = nextQty - previousQty;
+      if (delta <= 0) {
+        continue;
+      }
+      if (!product) {
+        throw new Error(`Produit introuvable: ${productId}`);
+      }
+      if (product.stock < delta) {
+        throw new Error(`Stock insuffisant pour ${product.name}.`);
+      }
+    }
+
+    const nextLines: OrderLine[] = [];
+    for (const [productId, quantity] of nextQuantities.entries()) {
+      const product = state.products.find((item) => item.id === productId);
+      if (!product) {
+        throw new Error(`Produit introuvable: ${productId}`);
+      }
+      const finalUnitHt = promoPriceHt(product.priceHt, product.promoPercent);
+      const unitTtc = priceTtc(finalUnitHt, product.tvaRate);
+      nextLines.push({
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        unitPriceHt: finalUnitHt,
+        unitPriceTtc: unitTtc,
+        tvaRate: product.tvaRate,
+        lineTotalHt: roundToCents(finalUnitHt * quantity),
+        lineTotalTtc: roundToCents(unitTtc * quantity),
+        lineMarginEuro: marginEuro(finalUnitHt, product.buyPriceHt, quantity),
+        lineMarginPercent: marginPercent(finalUnitHt, product.buyPriceHt),
+      });
+    }
+
+    for (const productId of allProductIds) {
+      const product = state.products.find((item) => item.id === productId);
+      if (!product) {
+        continue;
+      }
+      const previousQty = previousQuantities.get(productId) ?? 0;
+      const nextQty = nextQuantities.get(productId) ?? 0;
+      const delta = nextQty - previousQty;
+      if (delta === 0) {
+        continue;
+      }
+      product.stock -= delta;
+      state.stockMovements.push({
+        id: id("stm"),
+        productId: product.id,
+        change: -delta,
+        reason: "MANUAL_ADJUSTMENT",
+        relatedOrderId: order.id,
+        createdAt: nowIso(),
+      });
+    }
+
+    order.lines = nextLines;
+    order.totalHt = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalHt, 0));
+    order.totalTtc = roundToCents(nextLines.reduce((sum, line) => sum + line.lineTotalTtc, 0));
+    order.totalTva = roundToCents(order.totalTtc - order.totalHt);
+
+    const payment = state.payments.find((item) => item.id === order.paymentId);
+    if (payment) {
+      payment.amountTtc = order.totalTtc;
+    }
   }
 
   await persistSharedState();

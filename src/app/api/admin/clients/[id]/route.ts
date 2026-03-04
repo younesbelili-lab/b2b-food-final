@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, context: { params: Params }) {
 
   const orders = (await listOrdersByUser(user.id))
     .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
   const totalAmountTtc = orders.reduce((sum, order) => sum + order.totalTtc, 0);
 
   return NextResponse.json({

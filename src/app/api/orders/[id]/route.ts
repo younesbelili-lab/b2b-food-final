@@ -44,6 +44,12 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
           deliveryDate: typeof body.deliveryDate === "string" ? body.deliveryDate : undefined,
           deliveryAddress:
             typeof body.deliveryAddress === "string" ? body.deliveryAddress : undefined,
+          lines: Array.isArray(body.lines)
+            ? body.lines.map((line: { productId?: unknown; quantity?: unknown }) => ({
+                productId: String(line.productId ?? ""),
+                quantity: Number(line.quantity ?? 0),
+              }))
+            : undefined,
         },
       );
       return NextResponse.json({ item: order });

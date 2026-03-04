@@ -28,20 +28,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const order = await createCheckout({
-      userId: user.id,
-      lines: body.lines ?? [],
-      paymentMethod,
-      deliveryDate: body.deliveryDate,
-      deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
-    });
-
     const recurringFrequency =
       body.recurringFrequency === "DAILY" ||
       body.recurringFrequency === "WEEKLY" ||
       body.recurringFrequency === "MONTHLY"
         ? body.recurringFrequency
         : "NONE";
+
+    const order = await createCheckout({
+      userId: user.id,
+      lines: body.lines ?? [],
+      paymentMethod,
+      deliveryDate: body.deliveryDate,
+      deliveryAddress: String(body.deliveryAddress ?? user.address ?? "").trim(),
+      recurrence: recurringFrequency,
+    });
 
     if (recurringFrequency !== "NONE") {
       await createRecurringOrder({
