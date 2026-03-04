@@ -486,27 +486,30 @@ async function syncSharedStateFromDisk() {
   }
 
   if (isDatabaseEnabled()) {
-    await persistDatabaseState({
-      users: state.users,
-      products: state.products,
-      runtime: getRuntimeSnapshot(),
-    });
+    try {
+      await persistDatabaseState({
+        users: state.users,
+        products: state.products,
+        runtime: getRuntimeSnapshot(),
+      });
+    } catch (error) {
+      console.warn("Database sync failed, continuing with file fallback:", error);
+    }
   }
 }
 
 async function persistSharedState() {
-  if (process.env.VERCEL && !isDatabaseEnabled()) {
-    throw new Error(
-      "Persistence indisponible: configure DATABASE_URL (ou POSTGRES_URL) sur Vercel pour sauvegarder durablement.",
-    );
-  }
   if (isDatabaseEnabled()) {
-    await persistDatabaseState({
-      users: state.users,
-      products: state.products,
-      runtime: getRuntimeSnapshot(),
-    });
-    return;
+    try {
+      await persistDatabaseState({
+        users: state.users,
+        products: state.products,
+        runtime: getRuntimeSnapshot(),
+      });
+      return;
+    } catch (error) {
+      console.warn("Database persist failed, using file fallback:", error);
+    }
   }
   persistUsers(state.users);
   persistProducts(state.products);
