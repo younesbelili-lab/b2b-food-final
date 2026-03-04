@@ -1608,10 +1608,14 @@ export async function updateOrder(
   }
 
   if (typeof payload.deliveryDate === "string" && payload.deliveryDate) {
-    if (!isDeliveryDateAllowed(payload.deliveryDate)) {
-      throw new Error("La date de livraison ne respecte pas la regle J+1/J+2.");
+    const nextDeliveryDate = payload.deliveryDate;
+    // Only revalidate when the user really changes delivery date.
+    if (nextDeliveryDate !== order.deliveryDate) {
+      if (!isDeliveryDateAllowed(nextDeliveryDate)) {
+        throw new Error("La date de livraison ne respecte pas la regle J+1/J+2.");
+      }
+      order.deliveryDate = nextDeliveryDate;
     }
-    order.deliveryDate = payload.deliveryDate;
   }
   if (typeof payload.deliveryAddress === "string") {
     const nextAddress = payload.deliveryAddress.trim();
