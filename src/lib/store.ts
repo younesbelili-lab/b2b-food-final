@@ -173,8 +173,22 @@ function getDatabaseConnectionString() {
   );
 }
 
+function getDirectDatabaseConnectionString() {
+  return (
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL_NON_POOLING ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL ||
+    ""
+  );
+}
+
 function isDatabaseEnabled() {
-  return !disableDatabaseForRuntime && Boolean(getDatabaseConnectionString());
+  return (
+    !disableDatabaseForRuntime &&
+    Boolean(getDatabaseConnectionString() || getDirectDatabaseConnectionString())
+  );
 }
 
 function isInvalidConnectionStringError(error: unknown) {
@@ -208,7 +222,7 @@ async function runDbQuery<T>(
     }
   }
 
-  const connectionString = getDatabaseConnectionString();
+  const connectionString = getDirectDatabaseConnectionString() || getDatabaseConnectionString();
   if (!connectionString) {
     throw new Error("Missing database connection string.");
   }
