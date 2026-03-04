@@ -182,7 +182,7 @@ async function runDbQuery<T>(
 ): Promise<{ rows: T[] }> {
   if (!forceDirectClient) {
     try {
-      return (await sql(strings, ...values)) as { rows: T[] };
+      return (await sql(strings, ...values)) as unknown as { rows: T[] };
     } catch (error) {
       if (!isInvalidConnectionStringError(error)) {
         throw error;
@@ -201,7 +201,7 @@ async function runDbQuery<T>(
   const client = createClient({ connectionString });
   await client.connect();
   try {
-    return (await client.sql(strings, ...values)) as { rows: T[] };
+    return (await client.sql(strings, ...values)) as unknown as { rows: T[] };
   } finally {
     await client.end();
   }
