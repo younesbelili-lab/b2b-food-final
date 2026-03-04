@@ -854,7 +854,14 @@ export async function listAllOrders(): Promise<Order[] > {
 
 export async function getOrderById(orderId: string): Promise<Order | undefined > {
   await syncSharedStateFromDisk();
-  return state.orders.find((order) => order.id === orderId);
+  const persisted = state.orders.find((order) => order.id === orderId);
+  if (persisted) {
+    return persisted;
+  }
+  if (orderId.startsWith(PROJECTED_ORDER_PREFIX)) {
+    return buildProjectedRecurringOrders().find((order) => order.id === orderId);
+  }
+  return undefined;
 }
 
 export async function createCheckout(input: CheckoutInput): Promise<Order > {
