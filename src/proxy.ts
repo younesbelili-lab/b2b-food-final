@@ -8,16 +8,6 @@ export function proxy(request: NextRequest) {
   const isAuthenticated = session !== null;
   const host = request.headers.get("host") ?? "";
 
-  if (
-    process.env.NODE_ENV === "production" &&
-    host.endsWith(".vercel.app") &&
-    host !== "b2b-food-final.vercel.app"
-  ) {
-    const canonical = new URL(request.url);
-    canonical.host = "b2b-food-final.vercel.app";
-    return NextResponse.redirect(canonical);
-  }
-
   const isAuthApi = pathname.startsWith("/api/auth/");
   const isRootLoginPage = pathname === "/";
   const isRoleLoginPage = pathname.startsWith("/login/");
