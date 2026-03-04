@@ -27,13 +27,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(target, request.url));
   }
 
-  if (isAuthenticated && pathname === "/login/admin" && session.role === "ADMIN") {
-    return NextResponse.redirect(new URL("/admin", request.url));
-  }
-
-  if (isAuthenticated && pathname === "/login/client" && session.role === "CLIENT") {
-    return NextResponse.redirect(new URL("/catalogue", request.url));
-  }
+  // Keep login pages accessible even when already connected.
+  // This prevents auto-redirections that skip identification screens.
 
   if (isAuthenticated && session.role !== "ADMIN" && (isAdminPage || isAdminApi)) {
     if (isAdminApi) {

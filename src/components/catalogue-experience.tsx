@@ -314,30 +314,6 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   }, [router]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      void reloadProducts();
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!sessionRole) {
-      return;
-    }
-    const interval = setInterval(() => {
-      void reloadProducts();
-      void reloadOrders();
-      if (sessionRole === "ADMIN") {
-        void reloadAdminClients();
-        if (selectedClientId) {
-          void loadAdminClientProfile(selectedClientId);
-        }
-      }
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [sessionRole, selectedClientId]);
-
-  useEffect(() => {
     if (!sessionRole) {
       return;
     }
