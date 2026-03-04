@@ -86,6 +86,7 @@ export type Order = {
   receptionConfirmed: boolean;
   recurrence: OrderRecurrence;
   recurringOrderId?: string;
+  cancellationReason?: "CLIENT_DELETED" | "CLIENT_CANCELLED" | "ADMIN_CANCELLED";
 };
 
 export type StockMovement = {
@@ -1040,6 +1041,10 @@ function getNextAllowedDeliveryDate(now = new Date()) {
   return delivery.toISOString().split("T")[0];
 }
 
+function isoDateToRunAt(isoDate: string) {
+  return `${isoDate}T08:00:00.000Z`;
+}
+
 async function materializeRecurringOrders() {
   const now = Date.now();
   let hasChanges = false;
@@ -1481,6 +1486,7 @@ export async function deleteClientUser(userId: string): Promise<User > {
     for (const order of state.orders) {
       if (order.userId === userId && !isOrderTerminal(order.status)) {
         order.status = "ANNULEE";
+        order.cancellationReason = "CLIENT_DELETED";
       }
     }
     for (const recurring of state.recurringOrders) {
@@ -1501,6 +1507,23 @@ export async function restoreClientUser(userId: string): Promise<User> {
   }
   if (user.deletedAt) {
     delete user.deletedAt;
+    for (const recurring of state.recurringOrders) {
+      if (recurring.userId === userId) {
+        recurring.active = true;
+      }
+    }
+    const today = new Date().toISOString().split("T")[0];
+    for (const order of state.orders) {
+      if (
+        order.userId === userId &&
+        order.status === "ANNULEE" &&
+        order.cancellationReason === "CLIENT_DELETED" &&
+        order.deliveryDate >= today
+      ) {
+        order.status = "A_PREPARER";
+        delete order.cancellationReason;
+      }
+    }
     await persistSharedState();
   }
   return user;
@@ -1550,6 +1573,7 @@ export async function cancelOrder(
   }
 
   order.status = "ANNULEE";
+  order.cancellationReason = actor.role === "ADMIN" ? "ADMIN_CANCELLED" : "CLIENT_CANCELLED";
   await persistSharedState();
   return order;
 }
@@ -1695,6 +1719,22 @@ export async function updateOrder(
     const payment = state.payments.find((item) => item.id === order.paymentId);
     if (payment) {
       payment.amountTtc = order.totalTtc;
+    }
+  }
+
+  if (order.recurrence !== "NONE" && order.recurringOrderId) {
+    const recurring = state.recurringOrders.find(
+      (item) => item.id === order.recurringOrderId && item.userId === order.userId,
+    );
+    if (recurring) {
+      if (Array.isArray(payload.lines)) {
+        recurring.lines = order.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+        }));
+      }
+      recurring.deliveryAddress = order.deliveryAddress;
+      recurring.nextRunAt = getNextRunAt(isoDateToRunAt(order.deliveryDate), recurring.frequency);
     }
   }
 

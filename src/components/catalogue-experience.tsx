@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { priceTtc, promoPriceHt } from "@/lib/pricing";
 
 export type CatalogueProduct = {
@@ -184,6 +184,7 @@ function normalizeProduct(input: Partial<CatalogueProduct>): CatalogueProduct | 
 
 export function CatalogueExperience({ products }: { products: CatalogueProduct[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [productsState, setProductsState] = useState<CatalogueProduct[]>(
     products.map((item) => normalizeProduct(item)).filter((item): item is CatalogueProduct => item !== null),
   );
@@ -230,6 +231,8 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
   const [editLines, setEditLines] = useState<Array<{ productId: string; quantity: number }>>([]);
   const [newEditLineProductId, setNewEditLineProductId] = useState("");
   const [newEditLineQuantity, setNewEditLineQuantity] = useState(1);
+  const [isApplyingCatalogueEdit, setIsApplyingCatalogueEdit] = useState(false);
+  const editOrderIdFromQuery = searchParams.get("editOrder");
 
   async function reloadProducts() {
     try {
@@ -337,6 +340,34 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       await reloadAdminClients();
     })();
   }, [router]);
+
+  useEffect(() => {
+    if (!sessionRole || !editOrderIdFromQuery) {
+      return;
+    }
+    void (async () => {
+      try {
+        const response = await fetch(`/api/orders/${editOrderIdFromQuery}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.item) {
+          setHistoryError(data.error ?? "Commande introuvable pour edition.");
+          return;
+        }
+        const order = data.item as ClientOrder;
+        const nextQuantities: Record<string, number> = {};
+        for (const line of order.lines) {
+          nextQuantities[line.productId] = line.quantity;
+        }
+        setQuantities(nextQuantities);
+        setActiveTab("catalogue");
+      } catch {
+        setHistoryError("Impossible de charger la commande a modifier.");
+      }
+    })();
+  }, [sessionRole, editOrderIdFromQuery]);
 
   useEffect(() => {
     if (!sessionRole) {
@@ -826,6 +857,42 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
       }
     } finally {
       setProcessingOrderId(null);
+    }
+  }
+
+  async function applyCatalogueSelectionToOrder() {
+    if (!editOrderIdFromQuery) {
+      return;
+    }
+    if (!selectedLines.length) {
+      setHistoryError("Selectionne au moins un article pour cette commande.");
+      return;
+    }
+    setIsApplyingCatalogueEdit(true);
+    setHistoryError("");
+    try {
+      const response = await fetch(`/api/orders/${editOrderIdFromQuery}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateOrder",
+          lines: selectedLines.map((line) => ({
+            productId: line.productId,
+            quantity: line.quantity,
+          })),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setHistoryError(data.error ?? "Erreur de mise a jour de la commande.");
+        return;
+      }
+      await reloadOrders();
+      router.replace("/catalogue");
+      setActiveTab("history");
+    } finally {
+      setIsApplyingCatalogueEdit(false);
     }
   }
 
@@ -1373,15 +1440,31 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
             {selectedLines.length} article(s) selectionne(s) | Total estime:{" "}
             <span className="font-semibold">{selectedTotal.toFixed(2)} EUR TTC</span>
           </p>
-          <button
-            type="button"
-            onClick={goToCheckout}
-            disabled={!selectedLines.length}
-            className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400"
-          >
-            Passer la commande
-          </button>
+          {editOrderIdFromQuery ? (
+            <button
+              type="button"
+              onClick={() => void applyCatalogueSelectionToOrder()}
+              disabled={!selectedLines.length || isApplyingCatalogueEdit}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400"
+            >
+              {isApplyingCatalogueEdit ? "Application..." : "Appliquer a la commande"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={goToCheckout}
+              disabled={!selectedLines.length}
+              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400"
+            >
+              Passer la commande
+            </button>
+          )}
         </div>
+        {editOrderIdFromQuery && (
+          <p className="mt-2 text-xs text-slate-600">
+            Mode edition commande {editOrderIdFromQuery}: ajuste le panier puis clique sur "Appliquer a la commande".
+          </p>
+        )}
         <div className="mt-3 border-t border-slate-200 pt-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Panier</p>
           {selectedDetailed.length > 0 ? (
@@ -1666,6 +1749,13 @@ export function CatalogueExperience({ products }: { products: CatalogueProduct[]
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/catalogue?editOrder=${order.id}`)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+                        >
+                          Ajouter via catalogue
+                        </button>
                         <button
                           type="button"
                           onClick={() => void saveOrderEdit(order.id)}
