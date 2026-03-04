@@ -9,13 +9,14 @@ export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
 
   const isAuthApi = pathname.startsWith("/api/auth/");
+  const isPublicApi = pathname === "/api/version";
   const isRootLoginPage = pathname === "/";
   const isRoleLoginPage = pathname.startsWith("/login/");
   const isAdminPage = pathname.startsWith("/admin");
   const isAdminApi = pathname.startsWith("/api/admin");
   const isOtherApi = pathname.startsWith("/api/");
 
-  if (!isAuthenticated && !isRootLoginPage && !isRoleLoginPage && !isAuthApi) {
+  if (!isAuthenticated && !isRootLoginPage && !isRoleLoginPage && !isAuthApi && !isPublicApi) {
     if (isOtherApi) {
       return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
     }
