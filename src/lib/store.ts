@@ -178,7 +178,7 @@ function isInvalidConnectionStringError(error: unknown) {
 
 async function runDbQuery<T>(
   strings: TemplateStringsArray,
-  ...values: unknown[]
+  ...values: any[]
 ): Promise<{ rows: T[] }> {
   if (!forceDirectClient) {
     try {
