@@ -27,14 +27,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(target, request.url));
   }
 
-  if (isAuthenticated && pathname === "/login/admin") {
-    const target = session.role === "ADMIN" ? "/admin" : "/catalogue";
-    return NextResponse.redirect(new URL(target, request.url));
+  if (isAuthenticated && pathname === "/login/admin" && session.role === "ADMIN") {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  if (isAuthenticated && pathname === "/login/client") {
-    const target = session.role === "CLIENT" ? "/catalogue" : "/admin";
-    return NextResponse.redirect(new URL(target, request.url));
+  if (isAuthenticated && pathname === "/login/client" && session.role === "CLIENT") {
+    return NextResponse.redirect(new URL("/catalogue", request.url));
   }
 
   if (isAuthenticated && session.role !== "ADMIN" && (isAdminPage || isAdminApi)) {
